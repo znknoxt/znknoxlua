@@ -76,7 +76,7 @@ local function ShowDaysRemainingPopup()
 end
 
 -- ============================================
--- SKIN SYSTEM CONFIG (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
+-- SKIN SYSTEM CONFIG
 -- ============================================
 _G.OutfitSkins = {
     Suit = {403317,1406469,1405870,1407140,1407141,1407142,1407550,1406638,1406872,1406971,1407103},
@@ -115,7 +115,7 @@ function _G.TryShowWelcome()
 end
 
 -- ============================================
--- LIVE CONFIG READER (NO PETS, NO WEAPONS)
+-- LIVE CONFIG READER
 -- ============================================
 local CONFIG_READ = false
 local function ReadLiveConfig()
@@ -142,7 +142,7 @@ local function ReadLiveConfig()
 end
 
 -- ============================================
--- SKIN INJECTOR (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
+-- SKIN INJECTOR
 -- ============================================
 local function ApplyAllModSkins(p)
     if not CheckExpiration() or not p or not slua.isValid(p) then return end
@@ -198,7 +198,7 @@ local function ApplyLobbyTheme()
 end
 
 -- ============================================
--- 165 FPS LOGIC (ADDED)
+-- 165 FPS LOGIC
 -- ============================================
 local FPS_PATCHED = false
 _G.Enable165FPSLogic = function()
@@ -300,7 +300,7 @@ _G.Enable165FPSLogic = function()
 end
 
 -- ============================================
--- IPAD VIEW UI (ADDED)
+-- IPAD VIEW UI
 -- ============================================
 local IPAD_VIEW_PATCHED = false
 _G.EnableiPadViewUI = function()
@@ -317,7 +317,6 @@ _G.EnableiPadViewUI = function()
     end)
 end
 
--- Execute FPS and iPad View features
 _G.Enable165FPSLogic()
 _G.EnableiPadViewUI()
 
@@ -341,15 +340,17 @@ local function RemoveGrass()
 end
 
 -- ============================================
--- MAGIC BULLET (ENLARGED HITBOXES)
+-- MAGIC BULLET FIXED
 -- ============================================
-local MAGIC_BULLET_APPLIED = false
+local MAGIC_BULLET_EXECUTED = false
 local PHYSICS_CACHE = {}
 local function EnableMagicBullet()
-    if MAGIC_BULLET_APPLIED then return end
-    MAGIC_BULLET_APPLIED = true
+    if MAGIC_BULLET_EXECUTED then return end
+    
     pcall(function()
         local allChars = Game:GetAllPlayerPawns() or {}
+        local successCount = 0
+        
         for _, c in pairs(allChars) do
             if slua.isValid(c) then
                 local mesh = c.Mesh
@@ -362,24 +363,12 @@ local function EnableMagicBullet()
                         local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
                         if not PHYSICS_CACHE[assetName] then
                             local mb = {
-                                ["head"] = 200,
-                                ["neck_01"] = 150,
-                                ["pelvis"] = 150,
-                                ["spine_01"] = 150,
-                                ["spine_02"] = 150,
-                                ["spine_03"] = 150,
-                                ["upperarm_l"] = 150,
-                                ["upperarm_r"] = 150,
-                                ["lowerarm_l"] = 130,
-                                ["lowerarm_r"] = 130,
-                                ["hand_l"] = 100,
-                                ["hand_r"] = 100,
-                                ["thigh_l"] = 150,
-                                ["thigh_r"] = 150,
-                                ["calf_l"] = 130,
-                                ["calf_r"] = 130,
-                                ["foot_l"] = 100,
-                                ["foot_r"] = 100,
+                                ["head"] = 200, ["neck_01"] = 150, ["pelvis"] = 150,
+                                ["spine_01"] = 150, ["spine_02"] = 150, ["spine_03"] = 150,
+                                ["upperarm_l"] = 150, ["upperarm_r"] = 150, ["lowerarm_l"] = 130,
+                                ["lowerarm_r"] = 130, ["hand_l"] = 100, ["hand_r"] = 100,
+                                ["thigh_l"] = 150, ["thigh_r"] = 150, ["calf_l"] = 130,
+                                ["calf_r"] = 130, ["foot_l"] = 100, ["foot_r"] = 100,
                             }
                             local setups = physAsset.SkeletalBodySetups
                             for i = 1, 80 do
@@ -433,21 +422,29 @@ local function EnableMagicBullet()
                                 end
                             end
                             PHYSICS_CACHE[assetName] = true
-                            if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
+                            if mesh.RecreatePhysicsState then 
+                                mesh:RecreatePhysicsState()
+                                successCount = successCount + 1
+                            end
                         end
                     end
                 end
             end
         end
+        
+        if successCount > 0 then
+            MAGIC_BULLET_EXECUTED = true
+        end
     end)
 end
 
 -- ============================================
--- AIMBOT FUNCTIONS
+-- AIMBOT FUNCTIONS FIXED
 -- ============================================
 _G._AimbotCurrentPC = nil
 local AIMBOT_APPLIED = false
 local LAST_WEAPON_ID = 0
+local AIMBOT_TIMER_ACTIVE = false
 
 local function ApplyHardAimbot()
     pcall(function()
@@ -515,7 +512,6 @@ local function ApplyHardAimbot()
     end)
 end
 
-local AIMBOT_TIMER_ACTIVE = false
 local function AttachAimbotTimer()
     if AIMBOT_TIMER_ACTIVE then return end
     pcall(function()
@@ -525,14 +521,13 @@ local function AttachAimbotTimer()
         _G._AimbotCurrentPC = pc
         AIMBOT_TIMER_ACTIVE = true
         if pc.AddGameTimer then
-            pc:AddGameTimer(0.15, true, function()
+            pc:AddGameTimer(0.5, true, function()
                 if not slua.isValid(_G._AimbotCurrentPC) then
                     _G._AimbotCurrentPC = nil
                     AIMBOT_TIMER_ACTIVE = false
                     return
                 end
                 ApplyHardAimbot()
-                EnableMagicBullet()
             end)
         end
     end)
@@ -543,7 +538,7 @@ AttachAimbotTimer()
 pcall(function()
     local pc = slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(3.0, true, function()
+        pc:AddGameTimer(5.0, true, function()
             if not slua.isValid(_G._AimbotCurrentPC) then
                 _G._AimbotCurrentPC = nil
                 AIMBOT_TIMER_ACTIVE = false
@@ -554,7 +549,7 @@ pcall(function()
 end)
 
 -- ============================================
--- View Distance Config Patch (Max 140)
+-- View Distance Config Patch
 -- ============================================
 local VIEW_DIST_PATCHED = false
 pcall(function()
@@ -572,14 +567,16 @@ pcall(function()
 end)
 
 -- ============================================
--- ESP AND MARK SYSTEMS
+-- ESP AND MARK SYSTEMS FIXED
 -- ============================================
-local ActiveForceMark = nil
-local LastMarkUpdate = 0
+local ActiveMarks = {}  -- FIXED: multiple marks support
+local LastMarkUpdate = {}
 local OUTLINE_CACHE = {}
 local LAST_FOV_VALUE = 0
 local LAST_SETTINGS_CHECK = 0
 local LAST_SKIN_APPLY = 0
+local LAST_PAWN_REFRESH = 0
+local CACHED_PAWNS = {}
 
 local PPM_CACHE = nil
 local function GetPPM()
@@ -590,16 +587,26 @@ end
 
 local function RegisterAvatarOutline(selfChar)
     if not Client or not CheckExpiration() then return end
+    if not slua.isValid(selfChar) then return end
+    
     local uPlayerCharacter = GameplayData.GetPlayerCharacter()
     if not slua.isValid(uPlayerCharacter) then return end
+    
+    if uPlayerCharacter == selfChar then return end  -- FIXED: never outline self
 
-    local uAvatarComp2 = selfChar and selfChar.AvatarComponent2
+    local uAvatarComp2 = selfChar.AvatarComponent2
     if not slua.isValid(uAvatarComp2) then return end
 
     local PPM = GetPPM()
     if not slua.isValid(PPM) or not PPM.IsPPEnabled then return end
 
-    if uPlayerCharacter.TeamID ~= selfChar.TeamID then
+    local charKey = tostring(selfChar)
+    local isEnemy = (uPlayerCharacter.TeamID ~= selfChar.TeamID)
+    
+    if OUTLINE_CACHE[charKey] == isEnemy then return end
+    OUTLINE_CACHE[charKey] = isEnemy
+
+    if isEnemy then
         PPM.OutlineThickness = 3
         if PPM.OutlineColor then PPM.OutlineColor = { r = 1, g = 0, b = 0, a = 1 } end
         PPM:EnableAvatarOutline(uAvatarComp2, true)
@@ -614,35 +621,66 @@ local function UpdateESP_Mark(selfChar)
 
     local local_player = GameplayData.GetPlayerCharacter()
     if not slua.isValid(local_player) then return end
+    
+    if local_player == selfChar then return end
 
     if local_player.TeamID ~= selfChar.TeamID then
         if selfChar.IsAlive and selfChar:IsAlive() then
+            local charKey = tostring(selfChar)
             local current_time = os.clock()
-            if current_time - LastMarkUpdate > 1.5 then
-                LastMarkUpdate = current_time
+            
+            if (LastMarkUpdate[charKey] or 0) + 2.0 <= current_time then
+                LastMarkUpdate[charKey] = current_time
+                
                 local head_location = nil
                 pcall(function() head_location = selfChar:GetHeadLocation(false) end)
                 if not head_location then
                     pcall(function() head_location = selfChar:GetFuzzyPosition(FVector(0, 0, 0)) end)
                 end
+                
                 if head_location then
-                    if ActiveForceMark then
-                        InGameMarkTools.HideMapMark(ActiveForceMark)
+                    if ActiveMarks[charKey] then
+                        InGameMarkTools.HideMapMark(ActiveMarks[charKey])
                     end
-                    ActiveForceMark = InGameMarkTools.ClientAddMapMark(1003, head_location, 0, "", 4, nil)
+                    ActiveMarks[charKey] = InGameMarkTools.ClientAddMapMark(1003, head_location, 0, "", 4, nil)
                 end
             end
         end
-    else
-        if ActiveForceMark then
-            InGameMarkTools.HideMapMark(ActiveForceMark)
-            ActiveForceMark = nil
+    elseif ActiveMarks[tostring(selfChar)] then
+        InGameMarkTools.HideMapMark(ActiveMarks[tostring(selfChar)])
+        ActiveMarks[tostring(selfChar)] = nil
+    end
+end
+
+local function UpdateAllESP()
+    local currentTime = os.clock()
+    
+    if currentTime - LAST_PAWN_REFRESH > 1.0 then
+        LAST_PAWN_REFRESH = currentTime
+        CACHED_PAWNS = Game:GetAllPlayerPawns() or {}
+        
+        for key, _ in pairs(ActiveMarks) do
+            local found = false
+            for _, p in pairs(CACHED_PAWNS) do
+                if tostring(p) == key then found = true break end
+            end
+            if not found and ActiveMarks[key] then
+                InGameMarkTools.HideMapMark(ActiveMarks[key])
+                ActiveMarks[key] = nil
+            end
+        end
+    end
+    
+    for _, pawn in pairs(CACHED_PAWNS) do
+        if slua.isValid(pawn) then
+            UpdateESP_Mark(pawn)
+            RegisterAvatarOutline(pawn)
         end
     end
 end
 
 -- ============================================
--- MAIN TIMER SYSTEM
+-- MAIN TIMER SYSTEM OPTIMIZED
 -- ============================================
 local MAIN_TIMER_ACTIVE = false
 local function StartAdvancedSystems()
@@ -684,8 +722,7 @@ local function StartAdvancedSystems()
                 end
             end
 
-            UpdateESP_Mark(uLocalPlayer)
-            RegisterAvatarOutline(uLocalPlayer)
+            UpdateAllESP()
             
             if currentTime - LAST_SKIN_APPLY > 3.0 then
                 LAST_SKIN_APPLY = currentTime
@@ -700,7 +737,7 @@ local function StartAdvancedSystems()
 
     local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.15, true, TimerCallback)
+        pc:AddGameTimer(0.5, true, TimerCallback)
     end
 end
 
@@ -710,6 +747,8 @@ end
 local HOOK_APPLIED = false
 local function OnReceiveBeginPlay()
     if HOOK_APPLIED then return end
+    HOOK_APPLIED = true
+    
     if not CheckExpiration() then
         ShowExpirePopup()
         return
@@ -731,7 +770,7 @@ end
 -- ============================================
 pcall(function()
     local CCharacterBase = require("GameLua.GameCore.Framework.CharacterBase")
-    if CCharacterBase and CCharacterBase.ReceiveBeginPlay then
+    if CCharacterBase and CCharacterBase.ReceiveBeginPlay and not HOOK_APPLIED then
         local original = CCharacterBase.ReceiveBeginPlay
         CCharacterBase.ReceiveBeginPlay = function(self, ...)
             OnReceiveBeginPlay()
