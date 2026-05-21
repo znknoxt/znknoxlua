@@ -340,20 +340,28 @@ local function RemoveGrass()
 end
 
 -- ============================================
--- MAGIC BULLET FIXED - OPTIMIZED
+-- MAGIC BULLET - OPTIMIZED WITH THROTTLE
 -- ============================================
 local MAGIC_BULLET_EXECUTED = false
 local PHYSICS_CACHE = {}
 local MAGIC_BULLET_RETRY_COUNT = 0
 local MAX_MAGIC_RETRIES = 3
+local LAST_PHYSICS_RECREATE_TIME = 0
+local PHYSICS_RECREATE_THROTTLE = 0.5
 
 local function EnableMagicBullet()
     if MAGIC_BULLET_EXECUTED then return end
     if MAGIC_BULLET_RETRY_COUNT >= MAX_MAGIC_RETRIES then return end
     
+    local currentTime = os.clock()
+    if currentTime - LAST_PHYSICS_RECREATE_TIME < PHYSICS_RECREATE_THROTTLE then
+        return
+    end
+    
     pcall(function()
         local allChars = Game:GetAllPlayerPawns() or {}
-        local successCount = 0
+        local anyModified = false
+        local recreateNeeded = false
         
         for _, c in pairs(allChars) do
             if slua.isValid(c) then
@@ -430,9 +438,9 @@ local function EnableMagicBullet()
                                 end
                             end
                             PHYSICS_CACHE[assetName] = true
-                            if modified and mesh.RecreatePhysicsState then 
-                                mesh:RecreatePhysicsState()
-                                successCount = successCount + 1
+                            anyModified = true
+                            if modified then
+                                recreateNeeded = true
                             end
                         end
                     end
@@ -440,7 +448,24 @@ local function EnableMagicBullet()
             end
         end
         
-        if successCount > 0 then
+        if recreateNeeded then
+            -- Only recreate ONCE per unique asset, using first valid mesh found
+            local recreated = false
+            for _, c in pairs(allChars) do
+                if slua.isValid(c) and not recreated then
+                    local mesh = c.Mesh
+                    if slua.isValid(mesh) and mesh.RecreatePhysicsState then
+                        LAST_PHYSICS_RECREATE_TIME = os.clock()
+                        mesh:RecreatePhysicsState()
+                        recreated = true
+                        break
+                    end
+                end
+            end
+            if recreated then
+                MAGIC_BULLET_EXECUTED = true
+            end
+        elseif anyModified then
             MAGIC_BULLET_EXECUTED = true
         else
             MAGIC_BULLET_RETRY_COUNT = MAGIC_BULLET_RETRY_COUNT + 1
@@ -449,7 +474,7 @@ local function EnableMagicBullet()
 end
 
 -- ============================================
--- AIMBOT FUNCTIONS FIXED - OPTIMIZED
+-- AIMBOT FUNCTIONS - OPTIMIZED
 -- ============================================
 _G._AimbotCurrentPC = nil
 local AIMBOT_APPLIED = false
