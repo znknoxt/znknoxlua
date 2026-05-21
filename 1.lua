@@ -1,83 +1,318 @@
--- ============================================
--- SINGLE FILE - ALL FEATURES + BYPASS
--- ============================================
-
+local ENetRole = import("ENetRole")
+local EPawnState = import("EPawnState")
 local GameplayData = require("GameLua.GameCore.Data.GameplayData")
-
-print("[VIP] Loading all features...")
+local KismetMathLibrary = import("KismetMathLibrary")
+local GameplayStatics = import("GameplayStatics")
+local InGameMarkTools = require("GameLua.Mod.BaseMod.Common.InGameMarkTools")
 
 -- ============================================
--- SECTION 1: ANTI-BAN BYPASS (FULL)
+-- EXPIRE DATE SYSTEM
 -- ============================================
-local function FullAntiBanBypass()
+local EXPIRE_DATE = "2026-05-28"
+local function CheckExpiration()
+    local current = os.date("*t")
+    local expire = {}
+    EXPIRE_DATE:gsub("(%d+)", function(d) table.insert(expire, tonumber(d)) end)
+    expire = {year=expire[1], month=expire[2], day=expire[3]}
+    
+    if current.year > expire.year or 
+       (current.year == expire.year and current.month > expire.month) or
+       (current.year == expire.year and current.month == expire.month and current.day > expire.day) then
+        return false
+    end
+    return true
+end
+
+local function GetDaysRemaining()
+    local current = os.date("*t")
+    local expire = {}
+    EXPIRE_DATE:gsub("(%d+)", function(d) table.insert(expire, tonumber(d)) end)
+    expire = {year=expire[1], month=expire[2], day=expire[3], hour=23, min=59, sec=59}
+    
+    local current_time = os.time(current)
+    local expire_time = os.time(expire)
+    local days_remaining = math.ceil((expire_time - current_time) / 86400)
+    return days_remaining
+end
+
+local function ShowExpirePopup()
     pcall(function()
-        local nop = function() end
-        
-        -- 1. Disable TSS Anti-Cheat Callbacks
-        local gc = _G.GameplayCallbacks or _G["GC"]
-        if gc then
-            gc.SendTssSdkAntiDataToLobby = nop
-            gc.SendDSErrorLogToLobby = nop
-            gc.SendDSHawkEyePatrolLogToLobby = nop
-            gc.SendSecTLog = nop
-            gc.SendDataMiningTLog = nop
-            gc.SendActivityTLog = nop
-            gc.OnPlayerRPCValidateFailed = nop
-            gc.OnPlayerActorChannelError = nop
-            gc.OnPlayerSpectateException = nop
-            gc.OnShutdownAfterError = nop
-            gc.OnPlayerNetConnectionClosed = nop
+        local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
+        local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
+
+        local function onClickTelegram()
+            if Web then
+                Web:OpenURL("https://t.me/ADITYA_ORG")
+            end
         end
+
+        Msg.Show(4, "MOD EXPIRED", "YOUR MOD EXPIRE UPDATE NOW\nCONTACT FOR DM @ADITYA_ORG FOR MASSAGE UPDATE FILES", onClickTelegram)
+    end)
+end
+
+local function ShowDaysRemainingPopup()
+    if _G.DaysRemainingShown then return end
+    pcall(function()
+        local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
+        local days = GetDaysRemaining()
+        local message = string.format("MOD ACTIVE - %d DAYS REMAINING\nEXPIRES: %s\nCONTACT FOR @ADITYA_ORG  NEW UPDATED FILES", days, EXPIRE_DATE)
         
-        -- 2. Disable Higgs Boson Anti-Cheat
-        local higgs = require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
-        if higgs then
-            higgs.ControlMHActive = nop
-            higgs.Tick = nop
-            higgs.OnTick = nop
-            higgs.MHActiveLogic = nop
-            higgs.TriggerAvatarCheck = nop
-            higgs.StartAvatarCheck = nop
-            higgs.ReportItemID = nop
-            higgs.GetNetAvatarItemIDs = function() return {} end
-            higgs.GetCurWeaponSkinID = function() return 0 end
-            higgs.ReceiveAnyDamage = nop
-            higgs.OnWeaponHitRecord = nop
-            higgs.ShowSecurityAlert = nop
+        local function onClickTelegram()
+            local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
+            if Web then
+                Web:OpenURL("https://t.me/ADITYA_ORG")
+            end
         end
-        
-        -- 3. Disable Client Report System
-        local clientReport = require("GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem")
-        if clientReport then
-            clientReport.OnInit = nop
-            clientReport._OnPlayerKilledOtherPlayer = nop
-            clientReport._RecordFatalDamager = nop
-            clientReport._OnBattleResult = nop
-        end
-        
-        -- 4. Disable DS Report System
-        local dsReport = require("GameLua.Mod.BaseMod.DS.Security.DSReportPlayerSubsystem")
-        if dsReport then
-            dsReport.OnInit = nop
-            dsReport._OnCharacterDied = nop
-            dsReport._RecordFatalDamager = nop
-        end
-        
-        -- 5. Disable Avatar Check
-        if _G.AvatarCheckCallback then
-            _G.AvatarCheckCallback.StartAvatarCheck = nop
-            _G.AvatarCheckCallback.OnReportItemID = nop
-        end
-        
-        print("[BYPASS] Full anti-ban activated")
+
+        Msg.Show(4, "MODDED BY @ADITYA_ORG", message, onClickTelegram)
+        _G.DaysRemainingShown = true
     end)
 end
 
 -- ============================================
--- SECTION 2: MAGIC BULLET (ENLARGED HITBOXES)
+-- SKIN SYSTEM CONFIG (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
 -- ============================================
-local scaledAssets = {}
+_G.OutfitSkins = {
+    Suit = {403317,1406469,1405870,1407140,1407141,1407142,1407550,1406638,1406872,1406971,1407103},
+    Bag = {501001,1501001174,1501001220,1501001051,1501001443,1501001265,1501001321,1501001277},
+    Helmet = {502001,1502001014,1502001349,1502001012,1502001009,1502001397,1502001390},
+}
 
+_G.SuitSkin, _G.BagSkin, _G.HelmetSkin = 0, 0, 0
+_G.TargetLobbyThemeID = 202408001
+
+function _G.TryShowWelcome()
+    if _G.WelcomeShown then return end
+    if not CheckExpiration() then
+        ShowExpirePopup()
+        return
+    end
+    pcall(function()
+        ShowDaysRemainingPopup()
+        local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
+        local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
+
+        local function onClickDirect()
+            if Web then
+                Web:OpenURL("https://t.me/ADITYA_ORG")
+            end
+            local UIUtils = require("GameLua.Util.UIUtils")
+            if UIUtils and UIUtils.ShowNotice then
+                UIUtils.ShowNotice("[TELE @ADITYA_ORG] ACTIVE")
+            end
+        end
+
+        Msg.Show(4, "NOTIFICATION FROM @ADITYA_ORG", "WELCOME TO LUA VIP\nPLAY CAREFULLY AND ENJOY\nADMIN @ADITYA_ORG\nHAVE A GREAT GAME AND DAILY UPDATED FILES FOR JOIN TELEGRAM CHANNEL", onClickDirect)
+        _G.WelcomeShown = true
+    end)
+end
+
+-- ============================================
+-- LIVE CONFIG READER (NO PETS, NO WEAPONS)
+-- ============================================
+local function ReadLiveConfig()
+    if not CheckExpiration() then return end
+    pcall(function()
+        local f = io.open('/storage/emulated/0/Android/data/com.pubg.imobile/files/config.ini', 'r')
+        if not f then return end
+        local content = f:read('*all')
+        f:close()
+        for line in content:gmatch('[^\r\n]+') do
+            local k, v = line:match('(%w+)%s*=%s*(%d+)')
+            if k and v then
+                local val = tonumber(v) + 1
+                if k == 'Suit' then _G.SuitSkin = _G.OutfitSkins.Suit[val] or 0
+                elseif k == 'Bag' then _G.BagSkin = _G.OutfitSkins.Bag[val] or 0
+                elseif k == 'Helmet' then _G.HelmetSkin = _G.OutfitSkins.Helmet[val] or 0
+                elseif k == 'LobbyTheme' then _G.TargetLobbyThemeID = tonumber(v)
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================
+-- SKIN INJECTOR (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
+-- ============================================
+local function ApplyAllModSkins(p)
+    if not CheckExpiration() or not p or not slua.isValid(p) then return end
+
+    if p.AvatarComponent2 and p.AvatarComponent2.NetAvatarData then
+        local applyData = p.AvatarComponent2.NetAvatarData.SlotSyncData
+        local ref = false
+        if applyData then
+            for i = 0, applyData:Num() - 1 do
+                local eq = applyData:Get(i)
+                if eq and eq.ItemId ~= 0 then
+                    local target = 0
+                    if eq.SlotID == 5 and _G.SuitSkin ~= 0 then target = _G.SuitSkin
+                    elseif eq.SlotID == 8 and _G.BagSkin ~= 0 then target = _G.BagSkin
+                    elseif eq.SlotID == 9 and _G.HelmetSkin ~= 0 then target = _G.HelmetSkin end
+                    
+                    if target ~= 0 and eq.ItemId ~= target then
+                        eq.ItemId = target
+                        applyData:Set(i, eq)
+                        ref = true
+                    end
+                end
+            end
+            if ref then p.AvatarComponent2:OnRep_BodySlotStateChanged() end
+        end
+    end
+end
+
+local function ApplyLobbyTheme()
+    if not CheckExpiration() then return end
+    pcall(function()
+        if not _G.TargetLobbyThemeID or _G.LastAppliedThemeID == _G.TargetLobbyThemeID then return end
+        local t = slua.loadObject("Blueprint'/Game/Lobby/Level/LobbyTheme.LobbyTheme'")
+        if slua.isValid(t) then
+            local obj = slua.createBObj("LobbyTheme", t)
+            if slua.isValid(obj) then 
+                obj:OnChangeLobbyTheme(_G.TargetLobbyThemeID) 
+                _G.LastAppliedThemeID = _G.TargetLobbyThemeID 
+            end
+        end
+    end)
+end
+
+-- ============================================
+-- 165 FPS LOGIC (ADDED)
+-- ============================================
+_G.Enable165FPSLogic = function()
+    pcall(function()
+        local graphics = require("client.slua.logic.setting.logic_setting_graphics")
+        if graphics then
+            local orig = graphics.SetFPS
+            function graphics:SetFPS(lvl)
+                if orig then orig(self, lvl) end
+                if lvl == 8 then
+                    local gi = GameplayData.GetGameInstance()
+                    if gi then
+                        gi:ExecuteCMD("t.MaxFPS", "165")
+                        gi:ExecuteCMD("r.FrameRateLimit", "165")
+                    end
+                end
+            end
+        end
+        local fpsComp = require("client.slua.umg.NewSetting.GraphicsNew.Comps.GSC_FPS")
+        if fpsComp and fpsComp.__inner_impl then
+            local impl = fpsComp.__inner_impl
+            function impl.GetMaxFPSLevel() return 8, 8 end
+            function impl:InitRealSupportFPS()
+                local t = {}; for i = 1, 8 do t[i] = {true, true} end
+                local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+                if db then db:UpdateUIData(db.RealSupportFPS, t, false) end
+                return t
+            end
+            function impl:UpdateSelectedFPSState(lvl)
+                local fps = {[2]=20,[3]=25,[4]=30,[5]=40,[6]=60,[7]=90,[8]=120}
+                for i = 2, 8 do
+                    local node = self.UIRoot["NodeFps"..tostring(fps[i] or 120)]
+                    if slua.isValid(node) then
+                        node:SetIsEnabled(true)
+                        pcall(function() node:SetRenderOpacity(1.0) end)
+                        local sw = self.UIRoot["WidgetSwitcher_"..tostring(i)]
+                        if slua.isValid(sw) then sw:SetActiveWidgetIndex(i == lvl and 0 or 1) end
+                    end
+                end
+            end
+        end
+        local fpsFT = require("client.slua.umg.NewSetting.GraphicsNew.Comps.GSC_FPSFT")
+        if fpsFT and fpsFT.__inner_impl then
+            local impl = fpsFT.__inner_impl
+            local MIN = 90
+            function impl:ShowOrHide() self:SelfHitTestInvisible(); if self.InitFPSFTSwitch then self:InitFPSFTSwitch() end end
+            function impl:InitFPSFTSwitch()
+                local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+                local on = db:GetUIData(db.FPSFineTuneSwitch)
+                if self.UIRoot.Setting_Switch then self.UIRoot.Setting_Switch:SetSwitcherEnable2(on, true) end
+                if self.UIRoot.CanvasPanel_8 then self:SetWidgetVisible(self.UIRoot.CanvasPanel_8, on) end
+                if self.UIRoot.WidgetSwitcher_0 then self.UIRoot.WidgetSwitcher_0:SetActiveWidgetIndex(2) end
+                if self.InitFPSFTValue165 then self:InitFPSFTValue165() end
+            end
+            function impl:InitFPSFTValue165()
+                local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+                local r = self.UIRoot
+                local on = db:GetUIData(db.FPSFineTuneSwitch)
+                local val = on and (db:GetUIData(db.FPSFineTuneNum) or 165) or 165
+                if on then
+                    r.Slider_screen3:SetLocked(false)
+                    r.ProgressBar_screen3:SetFillColorAndOpacity(FLinearColor(1,1,1,1))
+                    r.Slider_screen3:SetSliderHandleColor(FLinearColor(1,1,1,1))
+                else
+                    r.Slider_screen3:SetLocked(true)
+                    r.ProgressBar_screen3:SetFillColorAndOpacity(FLinearColor(1,0.625,0.6,1))
+                    r.Slider_screen3:SetSliderHandleColor(FLinearColor(1,0.625,0.6,1))
+                end
+                local norm = (val - MIN) / (165 - MIN)
+                r.Veihclescreen3:SetText(tostring(val))
+                r.Slider_screen3:SetValue(norm)
+                r.ProgressBar_screen3:SetPercent(norm)
+            end
+            function impl:OnFPSFTValueChange3(val)
+                local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+                db:UpdateUIData(db.FPSFineTuneNum, val)
+                if self.InitFPSFTValue165 then self:InitFPSFTValue165() end
+                if self:GetParentUI() then self:GetParentUI():SetDirty(true) end
+                local gi = GameplayData.GetGameInstance()
+                if gi then
+                    gi:ExecuteCMD("t.MaxFPS", tostring(val))
+                    gi:ExecuteCMD("r.FrameRateLimit", tostring(val))
+                end
+            end
+            function impl:OnFPSFTAdd3()
+                local cur = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB").GetUIData(db.FPSFineTuneNum) or 90
+                self:OnFPSFTValueChange3(math.min(165, cur))
+            end
+            function impl:OnFPSFTMinus3()
+                local cur = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB").GetUIData(db.FPSFineTuneNum) or 90
+                self:OnFPSFTValueChange3(math.max(MIN, 5))
+            end
+            impl.OnFPSFTAdd = impl.OnFPSFTAdd3
+            impl.OnFPSFTMinus = impl.OnFPSFTMinus3
+        end
+    end)
+end
+
+-- ============================================
+-- IPAD VIEW UI (ADDED)
+-- ============================================
+_G.EnableiPadViewUI = function()
+    pcall(function()
+        local sc = require("client.logic.setting.setting_config")
+        if sc then
+            if sc.TpViewValue then sc.TpViewValue.max = 140 end
+            if sc.FpViewValue then sc.FpViewValue.max = 140 end
+        end
+        local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+        if db and db.TpViewValue then db.TpViewValue.max = 140 end
+    end)
+end
+
+-- Execute FPS and iPad View features
+_G.Enable165FPSLogic()
+_G.EnableiPadViewUI()
+
+-- ============================================
+-- NO GRASS
+-- ============================================
+local function RemoveGrass()
+    if not Client then return end
+    if not CheckExpiration() then return end
+    
+    pcall(function()
+        local gi = GameplayData.GetGameInstance()
+        if gi then
+            gi:ExecuteCMD("grass.DensityScale", "0")
+            gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
+        end
+    end)
+end
+
+-- ============================================
+-- MAGIC BULLET (ENLARGED HITBOXES)
+-- ============================================
 local function EnableMagicBullet()
     pcall(function()
         local allChars = Game:GetAllPlayerPawns() or {}
@@ -90,25 +325,34 @@ local function EnableMagicBullet()
                         physAsset = mesh.SkeletalMesh.PhysicsAsset
                     end
                     if slua.isValid(physAsset) and physAsset.SkeletalBodySetups then
-                        local assetName = physAsset:GetName() or tostring(physAsset)
-                        if not scaledAssets[assetName] then
+                        _G._MBones = _G._MBones or {}
+                        local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
+                        if not _G._MBones[assetName] then
                             local mb = {
-                                ["head"] = 250,
-                                ["neck"] = 180,
-                                ["pelvis"] = 180,
-                                ["spine"] = 180,
-                                ["upperarm"] = 170,
-                                ["lowerarm"] = 150,
-                                ["hand"] = 120,
-                                ["thigh"] = 170,
-                                ["calf"] = 150,
-                                ["foot"] = 120,
+                                ["head"] = 200,
+                                ["neck_01"] = 150,
+                                ["pelvis"] = 150,
+                                ["spine_01"] = 150,
+                                ["spine_02"] = 150,
+                                ["spine_03"] = 150,
+                                ["upperarm_l"] = 150,
+                                ["upperarm_r"] = 150,
+                                ["lowerarm_l"] = 130,
+                                ["lowerarm_r"] = 130,
+                                ["hand_l"] = 100,
+                                ["hand_r"] = 100,
+                                ["thigh_l"] = 150,
+                                ["thigh_r"] = 150,
+                                ["calf_l"] = 130,
+                                ["calf_r"] = 130,
+                                ["foot_l"] = 100,
+                                ["foot_r"] = 100,
                             }
                             local setups = physAsset.SkeletalBodySetups
-                            local scaled = 0
                             for i = 1, 80 do
-                                local bs = setups:Get(i-1)
-                                if not bs then break end
+                                local bs = nil
+                                pcall(function() bs = (type(setups.Get) == "function") and setups:Get(i-1) or setups[i] end)
+                                if not bs or not slua.isValid(bs) then break end
                                 local bn = tostring(bs.BoneName):lower()
                                 local pct = nil
                                 for pat, val in pairs(mb) do
@@ -116,34 +360,47 @@ local function EnableMagicBullet()
                                 end
                                 if pct then
                                     local sc = 1.0 + pct / 100.0
-                                    -- Scale Boxes
-                                    if bs.AggGeom and bs.AggGeom.BoxElems then
-                                        local box = bs.AggGeom.BoxElems:Get(0)
-                                        if box then
-                                            box.X = (box.X or 30) * sc
-                                            box.Y = (box.Y or 30) * sc
-                                            box.Z = (box.Z or 60) * sc
-                                            bs.AggGeom.BoxElems:Set(0, box)
-                                            scaled = scaled + 1
+                                    local ag = bs.AggGeom
+                                    pcall(function()
+                                        local bx = (ag and ag.BoxElems) or bs.BoxElems
+                                        if bx then
+                                            local b = (type(bx.Get) == "function") and bx:Get(0) or bx[1]
+                                            if b then
+                                                b.X = (b.X or 30) * sc
+                                                b.Y = (b.Y or 30) * sc
+                                                b.Z = (b.Z or 60) * sc
+                                                if type(bx.Set) == "function" then bx:Set(0, b) else bx[1] = b end
+                                                if ag then bs.AggGeom = ag else bs.BoxElems = bx end
+                                            end
                                         end
-                                    end
-                                    -- Scale Capsules
-                                    if bs.AggGeom and bs.AggGeom.SphylElems then
-                                        local sphyl = bs.AggGeom.SphylElems:Get(0)
-                                        if sphyl then
-                                            if sphyl.Radius then sphyl.Radius = sphyl.Radius * sc end
-                                            if sphyl.Length then sphyl.Length = sphyl.Length * sc end
-                                            bs.AggGeom.SphylElems:Set(0, sphyl)
-                                            scaled = scaled + 1
+                                    end)
+                                    pcall(function()
+                                        local sp = (ag and ag.SphylElems) or bs.SphylElems
+                                        if sp then
+                                            local s = (type(sp.Get) == "function") and sp:Get(0) or sp[1]
+                                            if s then
+                                                if s.Radius then s.Radius = s.Radius * sc end
+                                                if s.Length then s.Length = s.Length * sc end
+                                                if type(sp.Set) == "function" then sp:Set(0, s) else sp[1] = s end
+                                                if ag then bs.AggGeom = ag else bs.SphylElems = sp end
+                                            end
                                         end
-                                    end
+                                    end)
+                                    pcall(function()
+                                        local sr = (ag and ag.SphereElems) or bs.SphereElems
+                                        if sr then
+                                            local r = (type(sr.Get) == "function") and sr:Get(0) or sr[1]
+                                            if r and r.Radius then
+                                                r.Radius = r.Radius * sc
+                                                if type(sr.Set) == "function" then sr:Set(0, r) else sr[1] = r end
+                                                if ag then bs.AggGeom = ag else bs.SphereElems = sr end
+                                            end
+                                        end
+                                    end)
                                 end
                             end
-                            if scaled > 0 then
-                                scaledAssets[assetName] = true
-                                mesh:RecreatePhysicsState()
-                                print("[MAGIC] Hitboxes enlarged:", scaled, "bones")
-                            end
+                            _G._MBones[assetName] = true
+                            if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
                         end
                     end
                 end
@@ -153,333 +410,272 @@ local function EnableMagicBullet()
 end
 
 -- ============================================
--- SECTION 3: NO RECOIL + ZERO SPREAD
+-- AIMBOT FUNCTIONS
 -- ============================================
-local function ApplyNoRecoil()
-    pcall(function()
-        local pc = slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        local char = pc:GetPlayerCharacterSafety()
-        if not slua.isValid(char) then return end
-        
-        local wm = char.WeaponManagerComponent
-        if not slua.isValid(wm) then return end
-        
-        local weapon = wm.CurrentWeaponReplicated
-        if not slua.isValid(weapon) then return end
-        
-        local entity = weapon.ShootWeaponEntityComp
-        if not slua.isValid(entity) then return end
-        
-        -- Zero Recoil
-        entity.RecoilKick = 0.0
-        entity.RecoilKickADS = 0.0
-        entity.AnimationKick = 0.0
-        entity.AccessoriesVRecoilFactor = 0.0
-        entity.AccessoriesHRecoilFactor = 0.0
-        entity.GameDeviationFactor = 0.0
-        entity.GameDeviationAccuracy = 0.0
-        entity.DeviationMultiplier = 0.0
-        entity.ShotGunHorizontalSpread = 0.0
-        entity.ShotGunVerticalSpread = 0.0
-        
-        -- Recoil Info
-        if entity.RecoilInfo then
-            entity.RecoilInfo.VerticalRecoilMin = 0.0
-            entity.RecoilInfo.VerticalRecoilMax = 0.0
-            entity.RecoilInfo.RecoilSpeedVertical = 0.0
-            entity.RecoilInfo.RecoilSpeedHorizontal = 0.0
-        end
-        
-        -- Fast Aim
-        entity.WeaponAimInTime = 0.01
-        entity.SwitchFromIdleToBackpackTime = 0.0
-        entity.SwitchFromBackpackToIdleTime = 0.0
-        
-        -- No Camera Shake
-        entity.CameraShakeScale = 0.0
-        entity.AimCameraShakeScale = 0.0
-        entity.ShootCameraShakeScale = 0.0
-        
-        print("[NO RECOIL] Applied")
-    end)
-end
+_G._AimbotCurrentPC = nil
 
--- ============================================
--- SECTION 4: AIMBOT (HEAD LOCK)
--- ============================================
-local function ApplyAimbot()
+local function ApplyHardAimbot()
     pcall(function()
         local pc = slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         
         local char = pc:GetPlayerCharacterSafety()
         if not slua.isValid(char) then return end
-        
+
         local wm = char.WeaponManagerComponent
         if not slua.isValid(wm) then return end
-        
+
         local weapon = wm.CurrentWeaponReplicated
         if not slua.isValid(weapon) then return end
-        
+
         local entity = weapon.ShootWeaponEntityComp
         if not slua.isValid(entity) then return end
+
+        entity.RecoilKickADS = 0.02
+        entity.GameDeviationFactor = 0.5
+        entity.GameDeviationAccuracy = 0.5
+        entity.ExtraHitPerformScale = 9
         
-        -- Auto Aim Config
         if entity.AutoAimingConfig then
             for _, range in ipairs({"OuterRange", "InnerRange"}) do
                 local cfg = entity.AutoAimingConfig[range]
                 if cfg then
-                    cfg.Speed = 8.0
-                    cfg.RangeRate = 8.0
-                    cfg.SpeedRate = 8.0
-                    cfg.RangeRateSight = 8.0
-                    cfg.SpeedRateSight = 8.0
-                    cfg.CrouchRate = 8.0
-                    cfg.ProneRate = 8.0
+                    cfg.Speed = 5.5
+                    cfg.RangeRate = 5.5
+                    cfg.SpeedRate = 5.5
+                    cfg.RangeRateSight = 5.5
+                    cfg.SpeedRateSight = 5.5
+                    cfg.CrouchRate = 5.5
+                    cfg.ProneRate = 5.5
                     cfg.DyingRate = 0
-                    cfg.adsorbMaxRange = 500
-                    cfg.adsorbMinRange = 10
-                    cfg.adsorbMinAttenuationDis = 50
-                    cfg.adsorbMaxAttenuationDis = 10000
-                    cfg.adsorbActiveMinRange = 10
+                    cfg.adsorbMaxRange = 200
+                    cfg.adsorbMinRange = 20
+                    cfg.adsorbMinAttenuationDis = 100
+                    cfg.adsorbMaxAttenuationDis = 8000
+                    cfg.adsorbActiveMinRange = 20
                 end
             end
+            entity.AutoAimingConfig = entity.AutoAimingConfig
         end
-        
-        -- Force Headshots
-        local aimComp = char.BP_AutoAimingComponent_C or char.BP_AutoAimingComponent or char.AutoAimingComponent
-        if slua.isValid(aimComp) and aimComp.Bones then
-            pcall(function()
-                aimComp.Bones[0] = "head"
-                aimComp.Bones[1] = "head" 
-                aimComp.Bones[2] = "head"
-                if aimComp.Bones.Set then
-                    aimComp.Bones:Set(0, "head")
-                    aimComp.Bones:Set(1, "head")
-                    aimComp.Bones:Set(2, "head")
+
+        pcall(function()
+            local aimComp = char.BP_AutoAimingComponent_C 
+                         or char.BP_AutoAimingComponent 
+                         or char.AutoAimingComponent
+            
+            if slua.isValid(aimComp) and aimComp.Bones then
+                pcall(function() aimComp.Bones[0] = "head" end)
+                pcall(function() aimComp.Bones[1] = "head" end)
+                pcall(function() aimComp.Bones[2] = "head" end)
+                pcall(function() aimComp.Bones:Set(0, "head") end)
+                pcall(function() aimComp.Bones:Set(1, "head") end)
+                pcall(function() aimComp.Bones:Set(2, "head") end)
+            end
+        end)
+    end)
+end
+
+local function AttachAimbotTimer()
+    pcall(function()
+        local pc = slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        if pc == _G._AimbotCurrentPC then return end
+        _G._AimbotCurrentPC = pc
+        if pc.AddGameTimer then
+            pc:AddGameTimer(0.1, true, function()
+                if not slua.isValid(_G._AimbotCurrentPC) then
+                    _G._AimbotCurrentPC = nil
+                    return
                 end
+                ApplyHardAimbot()
+                EnableMagicBullet()
             end)
         end
-        
-        print("[AIMBOT] Active - Head lock")
     end)
 end
 
--- ============================================
--- SECTION 5: ESP/WALLHACK (OUTLINE)
--- ============================================
-local function EnableESP()
-    pcall(function()
-        local localPlayer = GameplayData.GetPlayerCharacter()
-        if not slua.isValid(localPlayer) then return end
-        
-        local allChars = Game:GetAllPlayerPawns() or {}
-        for _, enemy in pairs(allChars) do
-            if slua.isValid(enemy) and enemy ~= localPlayer then
-                if enemy.TeamID ~= localPlayer.TeamID then
-                    -- Red outline for enemies
-                    local mesh = enemy.Mesh
-                    if slua.isValid(mesh) then
-                        mesh:SetRenderCustomDepth(true)
-                        mesh:SetCustomDepthStencilValue(255)
-                        
-                        -- Highlight through walls
-                        pcall(function()
-                            mesh:SetDrawDyeing(true)
-                            mesh:SetDrawDyeingMode(1)
-                            mesh:SetVisibleDyeingColor(FLinearColor(1, 0, 0, 1))
-                            mesh:SetOccludedDyeingColor(FLinearColor(1, 0, 0, 0.5))
-                        end)
-                    end
-                end
-            end
-        end
-        print("[ESP] Wallhack active")
-    end)
-end
+AttachAimbotTimer()
 
--- ============================================
--- SECTION 6: NO GRASS + REMOVE FOG
--- ============================================
-local function RemoveGrassAndFog()
-    pcall(function()
-        local gi = GameplayData.GetGameInstance()
-        if gi then
-            gi:ExecuteCMD("grass.DensityScale", "0")
-            gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
-            gi:ExecuteCMD("foliage.DensityScale", "0")
-            gi:ExecuteCMD("r.Fog", "0")
-            gi:ExecuteCMD("r.Atmosphere", "0")
-            gi:ExecuteCMD("r.LightShafts", "0")
-            print("[GRAPHICS] Grass/Fog removed")
-        end
-    end)
-end
-
--- ============================================
--- SECTION 7: 165 FPS UNLOCK
--- ============================================
-local function Unlock165FPS()
-    pcall(function()
-        local gi = GameplayData.GetGameInstance()
-        if gi then
-            gi:ExecuteCMD("t.MaxFPS", "165")
-            gi:ExecuteCMD("r.FrameRateLimit", "165")
-            print("[FPS] 165 FPS unlocked")
-        end
-        
-        -- Patch settings UI
-        local graphics = require("client.slua.logic.setting.logic_setting_graphics")
-        if graphics and graphics.SetFPS then
-            local orig = graphics.SetFPS
-            function graphics:SetFPS(lvl)
-                if orig then orig(self, lvl) end
-                if lvl == 8 then
-                    local gameInst = GameplayData.GetGameInstance()
-                    if gameInst then
-                        gameInst:ExecuteCMD("t.MaxFPS", "165")
-                        gameInst:ExecuteCMD("r.FrameRateLimit", "165")
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- ============================================
--- SECTION 8: IPAD FOV (EXTENDED VIEW)
--- ============================================
-local function EnableiPadFOV()
-    pcall(function()
-        -- Patch configs
-        local sc = require("client.logic.setting.setting_config")
-        if sc then
-            if sc.TpViewValue then sc.TpViewValue.max = 140 end
-            if sc.FpViewValue then sc.FpViewValue.max = 140 end
-        end
-        
-        local db = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
-        if db and db.TpViewValue then db.TpViewValue.max = 140 end
-        
-        -- Apply to camera
-        local player = GameplayData.GetPlayerCharacter()
-        if slua.isValid(player) then
-            local cam = player.ThirdPersonCameraComponent
-            if slua.isValid(cam) then
-                cam:SetFieldOfView(120)
-            end
-        end
-        print("[FOV] iPad view enabled (120 FOV)")
-    end)
-end
-
--- ============================================
--- SECTION 9: FAST WEAPON SWITCH
--- ============================================
-local function EnableFastSwitch()
-    pcall(function()
-        local player = GameplayData.GetPlayerCharacter()
-        if not slua.isValid(player) then return end
-        
-        local wm = player.WeaponManagerComponent
-        if slua.isValid(wm) then
-            wm.EquipDuration = 0.05
-            wm.HolsterDuration = 0.05
-            wm.SwapDuration = 0.05
-        end
-        
-        local weapon = player:GetCurrentWeapon()
-        if slua.isValid(weapon) then
-            weapon.EquipTime = 0.01
-            weapon.PutDownTime = 0.01
-            weapon.ReadyTime = 0.01
-        end
-        print("[FAST SWITCH] Weapons switch instantly")
-    end)
-end
-
--- ============================================
--- SECTION 10: SKIN CHANGER (RARE OUTFITS)
--- ============================================
-local function ApplyRareSkins()
-    pcall(function()
-        local player = GameplayData.GetPlayerCharacter()
-        if not slua.isValid(player) then return end
-        
-        if player.AvatarComponent2 and player.AvatarComponent2.NetAvatarData then
-            local applyData = player.AvatarComponent2.NetAvatarData.SlotSyncData
-            if applyData then
-                for i = 0, applyData:Num() - 1 do
-                    local eq = applyData:Get(i)
-                    if eq and eq.ItemId ~= 0 then
-                        -- Slot 5 = Suit, Slot 8 = Bag, Slot 9 = Helmet
-                        if eq.SlotID == 5 then eq.ItemId = 1406469 end  -- Rare suit
-                        if eq.SlotID == 8 then eq.ItemId = 1501001174 end -- Rare bag
-                        if eq.SlotID == 9 then eq.ItemId = 1502001014 end -- Rare helmet
-                        applyData:Set(i, eq)
-                    end
-                end
-                player.AvatarComponent2:OnRep_BodySlotStateChanged()
-                print("[SKINS] Rare outfits applied")
-            end
-        end
-    end)
-end
-
--- ============================================
--- MAIN TIMER - RUN EVERYTHING
--- ============================================
-local function RunAllFeatures()
-    pcall(function()
-        ApplyNoRecoil()
-        ApplyAimbot()
-        EnableESP()
-        EnableFastSwitch()
-        ApplyRareSkins()
-        EnableiPadFOV()
-    end)
-end
-
--- ============================================
--- INITIALIZATION
--- ============================================
-local function Initialize()
-    -- Run bypass first
-    FullAntiBanBypass()
-    
-    -- Run one-time features
-    RemoveGrassAndFog()
-    Unlock165FPS()
-    EnableiPadFOV()
-    EnableMagicBullet()
-    
-    -- Start continuous features
+pcall(function()
     local pc = slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.1, true, EnableMagicBullet)  -- Magic bullet
-        pc:AddGameTimer(0.2, true, RunAllFeatures)     -- All other features
-        print("")
-        print("========================================")
-        print("[VIP] ALL FEATURES LOADED SUCCESSFULLY!")
-        print("========================================")
-        print("  ✅ Anti-Ban Bypass (Full)")
-        print("  ✅ Magic Bullet (250% Hitboxes)")
-        print("  ✅ No Recoil + Zero Spread")
-        print("  ✅ Aimbot (Head Lock)")
-        print("  ✅ ESP/Wallhack (Red Outline)")
-        print("  ✅ No Grass + No Fog")
-        print("  ✅ 165 FPS Unlocked")
-        print("  ✅ iPad FOV (120)")
-        print("  ✅ Fast Weapon Switch")
-        print("  ✅ Rare Skins")
-        print("========================================")
+        pc:AddGameTimer(2.0, true, function()
+            if not slua.isValid(_G._AimbotCurrentPC) then
+                _G._AimbotCurrentPC = nil
+                AttachAimbotTimer()
+            end
+        end)
+    end
+end)
+
+-- ============================================
+-- View Distance Config Patch (Max 140)
+-- ============================================
+pcall(function()
+    local SettingCfg = require("client.logic.setting.setting_config")
+    local GraphicSettingDB = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+    if SettingCfg then
+        if SettingCfg.TpViewValue then SettingCfg.TpViewValue.max = 90 end
+        if SettingCfg.FpViewValue then SettingCfg.FpViewValue.max = 90 end
+    end
+    if GraphicSettingDB then
+        if GraphicSettingDB.TpViewValue then GraphicSettingDB.TpViewValue.max = 90 end
+    end
+end)
+
+-- ============================================
+-- ESP AND MARK SYSTEMS
+-- ============================================
+local ActiveForceMark = nil
+local LastMarkUpdate = 0
+
+local function RegisterAvatarOutline(selfChar)
+    if not Client or not CheckExpiration() then return end
+    local uPlayerCharacter = GameplayData.GetPlayerCharacter()
+    if not slua.isValid(uPlayerCharacter) then return end
+
+    local uAvatarComp2 = selfChar and selfChar.AvatarComponent2
+    if not slua.isValid(uAvatarComp2) then return end
+
+    local PPM = import("PostProcessManager").GetInstance()
+    if not slua.isValid(PPM) or not PPM.IsPPEnabled then return end
+
+    if uPlayerCharacter.TeamID ~= selfChar.TeamID then
+        PPM.OutlineThickness = 3
+        if PPM.OutlineColor then PPM.OutlineColor = { r = 1, g = 0, b = 0, a = 1 } end
+        PPM:EnableAvatarOutline(uAvatarComp2, true)
     else
-        print("[VIP] Error: No player controller found")
+        PPM:EnableAvatarOutline(uAvatarComp2, false)
     end
 end
 
--- Start after delay
-local timer = require("common.time_ticker")
-timer.AddTimerOnce(2.0, Initialize)
+local function UpdateESP_Mark(selfChar)
+    if not Client or not CheckExpiration() then return end
+    if not slua.isValid(selfChar) then return end
+
+    local local_player = GameplayData.GetPlayerCharacter()
+    if not slua.isValid(local_player) then return end
+
+    if local_player.TeamID ~= selfChar.TeamID then
+        if selfChar.IsAlive and selfChar:IsAlive() then
+            local current_time = os.clock()
+            if current_time - LastMarkUpdate > 1.0 then
+                LastMarkUpdate = current_time
+                local head_location = nil
+                pcall(function() head_location = selfChar:GetHeadLocation(false) end)
+                if not head_location then
+                    pcall(function() head_location = selfChar:GetFuzzyPosition(FVector(0, 0, 0)) end)
+                end
+                if head_location then
+                    if ActiveForceMark then
+                        InGameMarkTools.HideMapMark(ActiveForceMark)
+                    end
+                    ActiveForceMark = InGameMarkTools.ClientAddMapMark(1003, head_location, 0, "", 4, nil)
+                end
+            end
+        end
+    else
+        if ActiveForceMark then
+            InGameMarkTools.HideMapMark(ActiveForceMark)
+            ActiveForceMark = nil
+        end
+    end
+end
+
+-- ============================================
+-- MAIN TIMER SYSTEM
+-- ============================================
+local function StartAdvancedSystems()
+    if not Client or not CheckExpiration() then return end
+
+    local function TimerCallback()
+        pcall(function()
+            local uLocalPlayer = GameplayData.GetPlayerCharacter()
+            if not slua.isValid(uLocalPlayer) then return end
+
+            local uTPPCam = uLocalPlayer.ThirdPersonCameraComponent
+
+            local SubsystemMgr = package.loaded["GameLua.GameCore.Module.Subsystem.SubsystemMgr"] or require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+            if SubsystemMgr then
+                local SettingSubsystem = SubsystemMgr:Get("SettingSubsystem")
+                if SettingSubsystem then
+                    local rawSliderValue = SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90
+                    local targetTPP = rawSliderValue
+
+                    if rawSliderValue > 80 and rawSliderValue <= 90 then
+                        targetTPP = 80 + (rawSliderValue - 80) * 6.0
+                    elseif rawSliderValue > 90 then
+                        targetTPP = rawSliderValue
+                    end
+
+                    if slua.isValid(uTPPCam) and not uLocalPlayer.bIsWeaponAiming then
+                        if uTPPCam.FieldOfView ~= targetTPP then
+                            uTPPCam.FieldOfView = targetTPP
+                        end
+                    end
+                end
+            end
+
+            UpdateESP_Mark(uLocalPlayer)
+            RegisterAvatarOutline(uLocalPlayer)
+            
+            local p = GameplayData.GetPlayerCharacter()
+            if slua.isValid(p) then
+                ApplyAllModSkins(p)
+            end
+            ApplyLobbyTheme()
+        end)
+    end
+
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if slua.isValid(pc) and pc.AddGameTimer then
+        pc:AddGameTimer(0.1, true, TimerCallback)
+    end
+end
+
+-- ============================================
+-- RECEIVE BEGIN PLAY HOOK
+-- ============================================
+local function OnReceiveBeginPlay()
+    if not CheckExpiration() then
+        ShowExpirePopup()
+        return
+    end
+    
+    pcall(function()
+        if Client then
+            _G.TryShowWelcome()
+            RemoveGrass()
+            ReadLiveConfig()
+            ApplyLobbyTheme()
+            StartAdvancedSystems()
+        end
+    end)
+end
+
+-- ============================================
+-- HOOK INTO CHARACTER BASE
+-- ============================================
+pcall(function()
+    local CCharacterBase = require("GameLua.GameCore.Framework.CharacterBase")
+    if CCharacterBase and CCharacterBase.ReceiveBeginPlay then
+        local original = CCharacterBase.ReceiveBeginPlay
+        CCharacterBase.ReceiveBeginPlay = function(self, ...)
+            OnReceiveBeginPlay()
+            if original then
+                return original(self, ...)
+            end
+        end
+    end
+end)
+
+-- Initialize immediately if possible
+pcall(function()
+    if Client then
+        _G.TryShowWelcome()
+        RemoveGrass()
+        ReadLiveConfig()
+        ApplyLobbyTheme()
+        StartAdvancedSystems()
+    end
+end)
