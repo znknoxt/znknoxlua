@@ -340,12 +340,16 @@ local function RemoveGrass()
 end
 
 -- ============================================
--- MAGIC BULLET FIXED
+-- MAGIC BULLET FIXED - OPTIMIZED
 -- ============================================
 local MAGIC_BULLET_EXECUTED = false
 local PHYSICS_CACHE = {}
+local MAGIC_BULLET_RETRY_COUNT = 0
+local MAX_MAGIC_RETRIES = 3
+
 local function EnableMagicBullet()
     if MAGIC_BULLET_EXECUTED then return end
+    if MAGIC_BULLET_RETRY_COUNT >= MAX_MAGIC_RETRIES then return end
     
     pcall(function()
         local allChars = Game:GetAllPlayerPawns() or {}
@@ -371,6 +375,7 @@ local function EnableMagicBullet()
                                 ["calf_r"] = 130, ["foot_l"] = 100, ["foot_r"] = 100,
                             }
                             local setups = physAsset.SkeletalBodySetups
+                            local modified = false
                             for i = 1, 80 do
                                 local bs = nil
                                 pcall(function() bs = (type(setups.Get) == "function") and setups:Get(i-1) or setups[i] end)
@@ -393,6 +398,7 @@ local function EnableMagicBullet()
                                                 b.Z = (b.Z or 60) * sc
                                                 if type(bx.Set) == "function" then bx:Set(0, b) else bx[1] = b end
                                                 if ag then bs.AggGeom = ag else bs.BoxElems = bx end
+                                                modified = true
                                             end
                                         end
                                     end)
@@ -405,6 +411,7 @@ local function EnableMagicBullet()
                                                 if s.Length then s.Length = s.Length * sc end
                                                 if type(sp.Set) == "function" then sp:Set(0, s) else sp[1] = s end
                                                 if ag then bs.AggGeom = ag else bs.SphylElems = sp end
+                                                modified = true
                                             end
                                         end
                                     end)
@@ -416,13 +423,14 @@ local function EnableMagicBullet()
                                                 r.Radius = r.Radius * sc
                                                 if type(sr.Set) == "function" then sr:Set(0, r) else sr[1] = r end
                                                 if ag then bs.AggGeom = ag else bs.SphereElems = sr end
+                                                modified = true
                                             end
                                         end
                                     end)
                                 end
                             end
                             PHYSICS_CACHE[assetName] = true
-                            if mesh.RecreatePhysicsState then 
+                            if modified and mesh.RecreatePhysicsState then 
                                 mesh:RecreatePhysicsState()
                                 successCount = successCount + 1
                             end
@@ -434,12 +442,14 @@ local function EnableMagicBullet()
         
         if successCount > 0 then
             MAGIC_BULLET_EXECUTED = true
+        else
+            MAGIC_BULLET_RETRY_COUNT = MAGIC_BULLET_RETRY_COUNT + 1
         end
     end)
 end
 
 -- ============================================
--- AIMBOT FUNCTIONS FIXED
+-- AIMBOT FUNCTIONS FIXED - OPTIMIZED
 -- ============================================
 _G._AimbotCurrentPC = nil
 local AIMBOT_APPLIED = false
@@ -521,7 +531,7 @@ local function AttachAimbotTimer()
         _G._AimbotCurrentPC = pc
         AIMBOT_TIMER_ACTIVE = true
         if pc.AddGameTimer then
-            pc:AddGameTimer(0.5, true, function()
+            pc:AddGameTimer(1.0, true, function()
                 if not slua.isValid(_G._AimbotCurrentPC) then
                     _G._AimbotCurrentPC = nil
                     AIMBOT_TIMER_ACTIVE = false
@@ -538,7 +548,7 @@ AttachAimbotTimer()
 pcall(function()
     local pc = slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(5.0, true, function()
+        pc:AddGameTimer(10.0, true, function()
             if not slua.isValid(_G._AimbotCurrentPC) then
                 _G._AimbotCurrentPC = nil
                 AIMBOT_TIMER_ACTIVE = false
@@ -567,22 +577,37 @@ pcall(function()
 end)
 
 -- ============================================
--- ESP AND MARK SYSTEMS FIXED
+-- ESP AND MARK SYSTEMS - OPTIMIZED WITH DISTANCE LIMITS
 -- ============================================
-local ActiveMarks = {}  -- FIXED: multiple marks support
+local ActiveMarks = {}
 local LastMarkUpdate = {}
 local OUTLINE_CACHE = {}
 local LAST_FOV_VALUE = 0
 local LAST_SETTINGS_CHECK = 0
 local LAST_SKIN_APPLY = 0
 local LAST_PAWN_REFRESH = 0
+local LAST_MAGIC_BULLET_CHECK = 0
 local CACHED_PAWNS = {}
+local ESP_MAX_DISTANCE = 20000
+local OUTLINE_MAX_DISTANCE = 15000
 
 local PPM_CACHE = nil
 local function GetPPM()
     if PPM_CACHE and slua.isValid(PPM_CACHE) then return PPM_CACHE end
     PPM_CACHE = import("PostProcessManager").GetInstance()
     return PPM_CACHE
+end
+
+local function GetDistance(a, b)
+    if not slua.isValid(a) or not slua.isValid(b) then return 999999 end
+    local locA = nil
+    local locB = nil
+    pcall(function() locA = a:K2_GetActorLocation() end)
+    pcall(function() locB = b:K2_GetActorLocation() end)
+    if locA and locB then
+        return KismetMathLibrary.VSize(KismetMathLibrary.Subtract_VectorVector(locA, locB))
+    end
+    return 999999
 end
 
 local function RegisterAvatarOutline(selfChar)
@@ -592,7 +617,21 @@ local function RegisterAvatarOutline(selfChar)
     local uPlayerCharacter = GameplayData.GetPlayerCharacter()
     if not slua.isValid(uPlayerCharacter) then return end
     
-    if uPlayerCharacter == selfChar then return end  -- FIXED: never outline self
+    if uPlayerCharacter == selfChar then return end
+
+    local dist = GetDistance(uPlayerCharacter, selfChar)
+    if dist > OUTLINE_MAX_DISTANCE then
+        local charKey = tostring(selfChar)
+        if OUTLINE_CACHE[charKey] then
+            local PPM = GetPPM()
+            local uAvatarComp2 = selfChar.AvatarComponent2
+            if slua.isValid(PPM) and slua.isValid(uAvatarComp2) and PPM.IsPPEnabled then
+                PPM:EnableAvatarOutline(uAvatarComp2, false)
+            end
+            OUTLINE_CACHE[charKey] = nil
+        end
+        return
+    end
 
     local uAvatarComp2 = selfChar.AvatarComponent2
     if not slua.isValid(uAvatarComp2) then return end
@@ -624,12 +663,15 @@ local function UpdateESP_Mark(selfChar)
     
     if local_player == selfChar then return end
 
+    local dist = GetDistance(local_player, selfChar)
+    if dist > ESP_MAX_DISTANCE then return end
+
     if local_player.TeamID ~= selfChar.TeamID then
         if selfChar.IsAlive and selfChar:IsAlive() then
             local charKey = tostring(selfChar)
             local current_time = os.clock()
             
-            if (LastMarkUpdate[charKey] or 0) + 2.0 <= current_time then
+            if (LastMarkUpdate[charKey] or 0) + 5.0 <= current_time then
                 LastMarkUpdate[charKey] = current_time
                 
                 local head_location = nil
@@ -652,23 +694,34 @@ local function UpdateESP_Mark(selfChar)
     end
 end
 
+local function CleanupDeadPawns()
+    local toRemove = {}
+    for key, _ in pairs(ActiveMarks) do
+        local found = false
+        for _, p in pairs(CACHED_PAWNS) do
+            if tostring(p) == key then found = true break end
+        end
+        if not found then
+            toRemove[#toRemove + 1] = key
+        end
+    end
+    for _, key in ipairs(toRemove) do
+        if ActiveMarks[key] then
+            InGameMarkTools.HideMapMark(ActiveMarks[key])
+            ActiveMarks[key] = nil
+        end
+        LastMarkUpdate[key] = nil
+        OUTLINE_CACHE[key] = nil
+    end
+end
+
 local function UpdateAllESP()
     local currentTime = os.clock()
     
-    if currentTime - LAST_PAWN_REFRESH > 1.0 then
+    if currentTime - LAST_PAWN_REFRESH > 3.0 then
         LAST_PAWN_REFRESH = currentTime
         CACHED_PAWNS = Game:GetAllPlayerPawns() or {}
-        
-        for key, _ in pairs(ActiveMarks) do
-            local found = false
-            for _, p in pairs(CACHED_PAWNS) do
-                if tostring(p) == key then found = true break end
-            end
-            if not found and ActiveMarks[key] then
-                InGameMarkTools.HideMapMark(ActiveMarks[key])
-                ActiveMarks[key] = nil
-            end
-        end
+        CleanupDeadPawns()
     end
     
     for _, pawn in pairs(CACHED_PAWNS) do
@@ -680,7 +733,7 @@ local function UpdateAllESP()
 end
 
 -- ============================================
--- MAIN TIMER SYSTEM OPTIMIZED
+-- MAIN TIMER SYSTEM - OPTIMIZED WITH SEPARATED FREQUENCIES
 -- ============================================
 local MAIN_TIMER_ACTIVE = false
 local function StartAdvancedSystems()
@@ -688,15 +741,28 @@ local function StartAdvancedSystems()
     if not Client or not CheckExpiration() then return end
     MAIN_TIMER_ACTIVE = true
 
-    local function TimerCallback()
-        pcall(function()
-            local uLocalPlayer = GameplayData.GetPlayerCharacter()
-            if not slua.isValid(uLocalPlayer) then return end
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not slua.isValid(pc) then return end
 
-            local currentTime = os.clock()
-            
-            if currentTime - LAST_SETTINGS_CHECK > 1.0 then
-                LAST_SETTINGS_CHECK = currentTime
+    -- Fast timer: ESP updates (every 1s)
+    if pc.AddGameTimer then
+        pc:AddGameTimer(1.0, true, function()
+            pcall(function()
+                local uLocalPlayer = GameplayData.GetPlayerCharacter()
+                if not slua.isValid(uLocalPlayer) then return end
+
+                UpdateAllESP()
+            end)
+        end)
+    end
+
+    -- Medium timer: FOV + Settings (every 1s)
+    if pc.AddGameTimer then
+        pc:AddGameTimer(1.0, true, function()
+            pcall(function()
+                local uLocalPlayer = GameplayData.GetPlayerCharacter()
+                if not slua.isValid(uLocalPlayer) then return end
+
                 local uTPPCam = uLocalPlayer.ThirdPersonCameraComponent
 
                 local SubsystemMgr = package.loaded["GameLua.GameCore.Module.Subsystem.SubsystemMgr"] or require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
@@ -720,24 +786,32 @@ local function StartAdvancedSystems()
                         end
                     end
                 end
-            end
+            end)
+        end)
+    end
 
-            UpdateAllESP()
-            
-            if currentTime - LAST_SKIN_APPLY > 3.0 then
-                LAST_SKIN_APPLY = currentTime
+    -- Slow timer: Magic Bullet retry (every 10s)
+    if pc.AddGameTimer then
+        pc:AddGameTimer(10.0, true, function()
+            pcall(function()
+                if not MAGIC_BULLET_EXECUTED then
+                    EnableMagicBullet()
+                end
+            end)
+        end)
+    end
+
+    -- Slow timer: Skins + Lobby (every 5s)
+    if pc.AddGameTimer then
+        pc:AddGameTimer(5.0, true, function()
+            pcall(function()
                 local p = GameplayData.GetPlayerCharacter()
                 if slua.isValid(p) then
                     ApplyAllModSkins(p)
                 end
                 ApplyLobbyTheme()
-            end
+            end)
         end)
-    end
-
-    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.5, true, TimerCallback)
     end
 end
 
@@ -760,6 +834,7 @@ local function OnReceiveBeginPlay()
             RemoveGrass()
             ReadLiveConfig()
             ApplyLobbyTheme()
+            EnableMagicBullet()
             StartAdvancedSystems()
         end
     end)
@@ -788,6 +863,7 @@ pcall(function()
         RemoveGrass()
         ReadLiveConfig()
         ApplyLobbyTheme()
+        EnableMagicBullet()
         StartAdvancedSystems()
     end
 end)
