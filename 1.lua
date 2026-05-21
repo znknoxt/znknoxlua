@@ -1,3 +1,4 @@
+-- OPTIMIZED VERSION - HIGH PERFORMANCE / LOW LAG
 local ENetRole = import("ENetRole")
 local EPawnState = import("EPawnState")
 local GameplayData = require("GameLua.GameCore.Data.GameplayData")
@@ -6,10 +7,12 @@ local GameplayStatics = import("GameplayStatics")
 local InGameMarkTools = require("GameLua.Mod.BaseMod.Common.InGameMarkTools")
 
 -- ============================================
--- EXPIRE DATE SYSTEM
+-- EXPIRE DATE SYSTEM (RUN ONCE)
 -- ============================================
 local EXPIRE_DATE = "2026-05-28"
+local EXPIRATION_CHECK = nil
 local function CheckExpiration()
+    if EXPIRATION_CHECK ~= nil then return EXPIRATION_CHECK end
     local current = os.date("*t")
     local expire = {}
     EXPIRE_DATE:gsub("(%d+)", function(d) table.insert(expire, tonumber(d)) end)
@@ -18,8 +21,10 @@ local function CheckExpiration()
     if current.year > expire.year or 
        (current.year == expire.year and current.month > expire.month) or
        (current.year == expire.year and current.month == expire.month and current.day > expire.day) then
+        EXPIRATION_CHECK = false
         return false
     end
+    EXPIRATION_CHECK = true
     return true
 end
 
@@ -28,24 +33,18 @@ local function GetDaysRemaining()
     local expire = {}
     EXPIRE_DATE:gsub("(%d+)", function(d) table.insert(expire, tonumber(d)) end)
     expire = {year=expire[1], month=expire[2], day=expire[3], hour=23, min=59, sec=59}
-    
     local current_time = os.time(current)
     local expire_time = os.time(expire)
-    local days_remaining = math.ceil((expire_time - current_time) / 86400)
-    return days_remaining
+    return math.ceil((expire_time - current_time) / 86400)
 end
 
 local function ShowExpirePopup()
+    if _G.ExpirePopupShown then return end
+    _G.ExpirePopupShown = true
     pcall(function()
         local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
         local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
-
-        local function onClickTelegram()
-            if Web then
-                Web:OpenURL("https://t.me/ADITYA_ORG")
-            end
-        end
-
+        local function onClickTelegram() if Web then Web:OpenURL("https://t.me/ADITYA_ORG") end end
         Msg.Show(4, "MOD EXPIRED", "YOUR MOD EXPIRE UPDATE NOW\nCONTACT FOR DM @ADITYA_ORG FOR MASSAGE UPDATE FILES", onClickTelegram)
     end)
 end
@@ -56,62 +55,52 @@ local function ShowDaysRemainingPopup()
         local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
         local days = GetDaysRemaining()
         local message = string.format("MOD ACTIVE - %d DAYS REMAINING\nEXPIRES: %s\nCONTACT FOR @ADITYA_ORG  NEW UPDATED FILES", days, EXPIRE_DATE)
-        
         local function onClickTelegram()
             local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
-            if Web then
-                Web:OpenURL("https://t.me/ADITYA_ORG")
-            end
+            if Web then Web:OpenURL("https://t.me/ADITYA_ORG") end
         end
-
         Msg.Show(4, "MODDED BY @ADITYA_ORG", message, onClickTelegram)
         _G.DaysRemainingShown = true
     end)
 end
 
 -- ============================================
--- SKIN SYSTEM CONFIG (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
+-- SKIN SYSTEM CONFIG (CACHED)
 -- ============================================
 _G.OutfitSkins = {
     Suit = {403317,1406469,1405870,1407140,1407141,1407142,1407550,1406638,1406872,1406971,1407103},
     Bag = {501001,1501001174,1501001220,1501001051,1501001443,1501001265,1501001321,1501001277},
     Helmet = {502001,1502001014,1502001349,1502001012,1502001009,1502001397,1502001390},
 }
-
 _G.SuitSkin, _G.BagSkin, _G.HelmetSkin = 0, 0, 0
 _G.TargetLobbyThemeID = 202408001
+_G.LastAppliedSkins = {suit=0, bag=0, helmet=0} -- OPTIMIZED: cache last applied
 
 function _G.TryShowWelcome()
     if _G.WelcomeShown then return end
-    if not CheckExpiration() then
-        ShowExpirePopup()
-        return
-    end
+    if not CheckExpiration() then ShowExpirePopup() return end
     pcall(function()
         ShowDaysRemainingPopup()
         local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"] or require("client.slua.logic.common.logic_common_msg_box")
         local Web = package.loaded["client.slua.logic.url.logic_webview_sdk"] or require("client.slua.logic.url.logic_webview_sdk")
-
         local function onClickDirect()
-            if Web then
-                Web:OpenURL("https://t.me/ADITYA_ORG")
-            end
+            if Web then Web:OpenURL("https://t.me/ADITYA_ORG") end
             local UIUtils = require("GameLua.Util.UIUtils")
-            if UIUtils and UIUtils.ShowNotice then
-                UIUtils.ShowNotice("[TELE @ADITYA_ORG] ACTIVE")
-            end
+            if UIUtils and UIUtils.ShowNotice then UIUtils.ShowNotice("[TELE @ADITYA_ORG] ACTIVE") end
         end
-
         Msg.Show(4, "NOTIFICATION FROM @ADITYA_ORG", "WELCOME TO LUA VIP\nPLAY CAREFULLY AND ENJOY\nADMIN @ADITYA_ORG\nHAVE A GREAT GAME AND DAILY UPDATED FILES FOR JOIN TELEGRAM CHANNEL", onClickDirect)
         _G.WelcomeShown = true
     end)
 end
 
 -- ============================================
--- LIVE CONFIG READER (NO PETS, NO WEAPONS)
+-- LIVE CONFIG READER (RUN ONCE)
 -- ============================================
+local CONFIG_READ = false
 local function ReadLiveConfig()
+    if CONFIG_READ then return end
     if not CheckExpiration() then return end
+    CONFIG_READ = true
     pcall(function()
         local f = io.open('/storage/emulated/0/Android/data/com.pubg.imobile/files/config.ini', 'r')
         if not f then return end
@@ -132,23 +121,31 @@ local function ReadLiveConfig()
 end
 
 -- ============================================
--- SKIN INJECTOR (ONLY OUTFITS - NO WEAPONS/VEHICLES/PETS)
+-- SKIN INJECTOR (OPTIMIZED - ONLY WHEN CHANGED)
 -- ============================================
 local function ApplyAllModSkins(p)
     if not CheckExpiration() or not p or not slua.isValid(p) then return end
-
+    -- OPTIMIZED: skip if no skins configured
+    if _G.SuitSkin == 0 and _G.BagSkin == 0 and _G.HelmetSkin == 0 then return end
+    
     if p.AvatarComponent2 and p.AvatarComponent2.NetAvatarData then
         local applyData = p.AvatarComponent2.NetAvatarData.SlotSyncData
-        local ref = false
         if applyData then
+            local ref = false
             for i = 0, applyData:Num() - 1 do
                 local eq = applyData:Get(i)
                 if eq and eq.ItemId ~= 0 then
                     local target = 0
-                    if eq.SlotID == 5 and _G.SuitSkin ~= 0 then target = _G.SuitSkin
-                    elseif eq.SlotID == 8 and _G.BagSkin ~= 0 then target = _G.BagSkin
-                    elseif eq.SlotID == 9 and _G.HelmetSkin ~= 0 then target = _G.HelmetSkin end
-                    
+                    if eq.SlotID == 5 and _G.SuitSkin ~= 0 and _G.LastAppliedSkins.suit ~= _G.SuitSkin then 
+                        target = _G.SuitSkin
+                        _G.LastAppliedSkins.suit = _G.SuitSkin
+                    elseif eq.SlotID == 8 and _G.BagSkin ~= 0 and _G.LastAppliedSkins.bag ~= _G.BagSkin then 
+                        target = _G.BagSkin
+                        _G.LastAppliedSkins.bag = _G.BagSkin
+                    elseif eq.SlotID == 9 and _G.HelmetSkin ~= 0 and _G.LastAppliedSkins.helmet ~= _G.HelmetSkin then 
+                        target = _G.HelmetSkin
+                        _G.LastAppliedSkins.helmet = _G.HelmetSkin
+                    end
                     if target ~= 0 and eq.ItemId ~= target then
                         eq.ItemId = target
                         applyData:Set(i, eq)
@@ -161,25 +158,30 @@ local function ApplyAllModSkins(p)
     end
 end
 
+local LOBBY_THEME_APPLIED = false
 local function ApplyLobbyTheme()
+    if LOBBY_THEME_APPLIED then return end
     if not CheckExpiration() then return end
     pcall(function()
-        if not _G.TargetLobbyThemeID or _G.LastAppliedThemeID == _G.TargetLobbyThemeID then return end
+        if not _G.TargetLobbyThemeID then return end
         local t = slua.loadObject("Blueprint'/Game/Lobby/Level/LobbyTheme.LobbyTheme'")
         if slua.isValid(t) then
             local obj = slua.createBObj("LobbyTheme", t)
             if slua.isValid(obj) then 
                 obj:OnChangeLobbyTheme(_G.TargetLobbyThemeID) 
-                _G.LastAppliedThemeID = _G.TargetLobbyThemeID 
+                LOBBY_THEME_APPLIED = true
             end
         end
     end)
 end
 
 -- ============================================
--- 165 FPS LOGIC (ADDED)
+-- 165 FPS LOGIC (RUN ONCE - OPTIMIZED)
 -- ============================================
+local FPS_PATCHED = false
 _G.Enable165FPSLogic = function()
+    if FPS_PATCHED then return end
+    FPS_PATCHED = true
     pcall(function()
         local graphics = require("client.slua.logic.setting.logic_setting_graphics")
         if graphics then
@@ -276,9 +278,12 @@ _G.Enable165FPSLogic = function()
 end
 
 -- ============================================
--- IPAD VIEW UI (ADDED)
+-- IPAD VIEW UI (RUN ONCE)
 -- ============================================
+local IPAD_VIEW_PATCHED = false
 _G.EnableiPadViewUI = function()
+    if IPAD_VIEW_PATCHED then return end
+    IPAD_VIEW_PATCHED = true
     pcall(function()
         local sc = require("client.logic.setting.setting_config")
         if sc then
@@ -290,17 +295,19 @@ _G.EnableiPadViewUI = function()
     end)
 end
 
--- Execute FPS and iPad View features
+-- Execute FPS and iPad View features (RUN ONCE)
 _G.Enable165FPSLogic()
 _G.EnableiPadViewUI()
 
 -- ============================================
--- NO GRASS
+-- NO GRASS (RUN ONCE)
 -- ============================================
+local GRASS_REMOVED = false
 local function RemoveGrass()
+    if GRASS_REMOVED then return end
     if not Client then return end
     if not CheckExpiration() then return end
-    
+    GRASS_REMOVED = true
     pcall(function()
         local gi = GameplayData.GetGameInstance()
         if gi then
@@ -311,9 +318,13 @@ local function RemoveGrass()
 end
 
 -- ============================================
--- MAGIC BULLET (ENLARGED HITBOXES)
+-- MAGIC BULLET (RUN ONCE - CACHED PHYSICS)
 -- ============================================
+local MAGIC_BULLET_APPLIED = false
+local PHYSICS_CACHE = {} -- OPTIMIZED: cache modified assets
 local function EnableMagicBullet()
+    if MAGIC_BULLET_APPLIED then return end
+    MAGIC_BULLET_APPLIED = true
     pcall(function()
         local allChars = Game:GetAllPlayerPawns() or {}
         for _, c in pairs(allChars) do
@@ -325,28 +336,15 @@ local function EnableMagicBullet()
                         physAsset = mesh.SkeletalMesh.PhysicsAsset
                     end
                     if slua.isValid(physAsset) and physAsset.SkeletalBodySetups then
-                        _G._MBones = _G._MBones or {}
                         local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
-                        if not _G._MBones[assetName] then
+                        if not PHYSICS_CACHE[assetName] then
                             local mb = {
-                                ["head"] = 200,
-                                ["neck_01"] = 150,
-                                ["pelvis"] = 150,
-                                ["spine_01"] = 150,
-                                ["spine_02"] = 150,
-                                ["spine_03"] = 150,
-                                ["upperarm_l"] = 150,
-                                ["upperarm_r"] = 150,
-                                ["lowerarm_l"] = 130,
-                                ["lowerarm_r"] = 130,
-                                ["hand_l"] = 100,
-                                ["hand_r"] = 100,
-                                ["thigh_l"] = 150,
-                                ["thigh_r"] = 150,
-                                ["calf_l"] = 130,
-                                ["calf_r"] = 130,
-                                ["foot_l"] = 100,
-                                ["foot_r"] = 100,
+                                ["head"] = 200, ["neck_01"] = 150, ["pelvis"] = 150,
+                                ["spine_01"] = 150, ["spine_02"] = 150, ["spine_03"] = 150,
+                                ["upperarm_l"] = 150, ["upperarm_r"] = 150, ["lowerarm_l"] = 130,
+                                ["lowerarm_r"] = 130, ["hand_l"] = 100, ["hand_r"] = 100,
+                                ["thigh_l"] = 150, ["thigh_r"] = 150, ["calf_l"] = 130,
+                                ["calf_r"] = 130, ["foot_l"] = 100, ["foot_r"] = 100,
                             }
                             local setups = physAsset.SkeletalBodySetups
                             for i = 1, 80 do
@@ -399,7 +397,7 @@ local function EnableMagicBullet()
                                     end)
                                 end
                             end
-                            _G._MBones[assetName] = true
+                            PHYSICS_CACHE[assetName] = true
                             if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
                         end
                     end
@@ -410,9 +408,11 @@ local function EnableMagicBullet()
 end
 
 -- ============================================
--- AIMBOT FUNCTIONS
+-- AIMBOT FUNCTIONS (OPTIMIZED - APPLIED ONCE PER WEAPON)
 -- ============================================
 _G._AimbotCurrentPC = nil
+local AIMBOT_APPLIED = false
+local LAST_WEAPON_ID = 0
 
 local function ApplyHardAimbot()
     pcall(function()
@@ -427,6 +427,12 @@ local function ApplyHardAimbot()
 
         local weapon = wm.CurrentWeaponReplicated
         if not slua.isValid(weapon) then return end
+        
+        -- OPTIMIZED: only reapply when weapon changes
+        local weaponId = weapon.GetName and weapon:GetName() or tostring(weapon)
+        if AIMBOT_APPLIED and LAST_WEAPON_ID == weaponId then return end
+        LAST_WEAPON_ID = weaponId
+        AIMBOT_APPLIED = true
 
         local entity = weapon.ShootWeaponEntityComp
         if not slua.isValid(entity) then return end
@@ -455,14 +461,10 @@ local function ApplyHardAimbot()
                     cfg.adsorbActiveMinRange = 20
                 end
             end
-            entity.AutoAimingConfig = entity.AutoAimingConfig
         end
 
         pcall(function()
-            local aimComp = char.BP_AutoAimingComponent_C 
-                         or char.BP_AutoAimingComponent 
-                         or char.AutoAimingComponent
-            
+            local aimComp = char.BP_AutoAimingComponent_C or char.BP_AutoAimingComponent or char.AutoAimingComponent
             if slua.isValid(aimComp) and aimComp.Bones then
                 pcall(function() aimComp.Bones[0] = "head" end)
                 pcall(function() aimComp.Bones[1] = "head" end)
@@ -475,20 +477,25 @@ local function ApplyHardAimbot()
     end)
 end
 
+-- OPTIMIZED: slower timer for aimbot (0.5s instead of 0.1s)
+local AIMBOT_TIMER_ACTIVE = false
 local function AttachAimbotTimer()
+    if AIMBOT_TIMER_ACTIVE then return end
     pcall(function()
         local pc = slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         if pc == _G._AimbotCurrentPC then return end
         _G._AimbotCurrentPC = pc
+        AIMBOT_TIMER_ACTIVE = true
         if pc.AddGameTimer then
-            pc:AddGameTimer(0.1, true, function()
+            -- OPTIMIZED: reduced frequency from 0.1s to 0.5s
+            pc:AddGameTimer(0.5, true, function()
                 if not slua.isValid(_G._AimbotCurrentPC) then
                     _G._AimbotCurrentPC = nil
+                    AIMBOT_TIMER_ACTIVE = false
                     return
                 end
                 ApplyHardAimbot()
-                EnableMagicBullet()
             end)
         end
     end)
@@ -496,12 +503,14 @@ end
 
 AttachAimbotTimer()
 
+-- OPTIMIZED: monitor for PC changes every 5 seconds instead of 2
 pcall(function()
     local pc = slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(2.0, true, function()
+        pc:AddGameTimer(5.0, true, function()
             if not slua.isValid(_G._AimbotCurrentPC) then
                 _G._AimbotCurrentPC = nil
+                AIMBOT_TIMER_ACTIVE = false
                 AttachAimbotTimer()
             end
         end)
@@ -509,9 +518,12 @@ pcall(function()
 end)
 
 -- ============================================
--- View Distance Config Patch (Max 140)
+-- View Distance Config Patch (RUN ONCE)
 -- ============================================
+local VIEW_DIST_PATCHED = false
 pcall(function()
+    if VIEW_DIST_PATCHED then return end
+    VIEW_DIST_PATCHED = true
     local SettingCfg = require("client.logic.setting.setting_config")
     local GraphicSettingDB = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
     if SettingCfg then
@@ -524,23 +536,43 @@ pcall(function()
 end)
 
 -- ============================================
--- ESP AND MARK SYSTEMS
+-- ESP AND MARK SYSTEMS (OPTIMIZED - CACHED)
 -- ============================================
 local ActiveForceMark = nil
 local LastMarkUpdate = 0
+local OUTLINE_CACHE = {} -- OPTIMIZED: cache outline states per character
+local LAST_FOV_VALUE = 0
+local LAST_SETTINGS_CHECK = 0
+local LAST_SKIN_APPLY = 0
+
+-- OPTIMIZED: cached PostProcessManager
+local PPM_CACHE = nil
+local function GetPPM()
+    if PPM_CACHE and slua.isValid(PPM_CACHE) then return PPM_CACHE end
+    PPM_CACHE = import("PostProcessManager").GetInstance()
+    return PPM_CACHE
+end
 
 local function RegisterAvatarOutline(selfChar)
     if not Client or not CheckExpiration() then return end
     local uPlayerCharacter = GameplayData.GetPlayerCharacter()
     if not slua.isValid(uPlayerCharacter) then return end
+    
+    local charKey = tostring(selfChar)
+    -- OPTIMIZED: only update outline if team changed
+    local currentTeam = selfChar.TeamID
+    local shouldOutline = (uPlayerCharacter.TeamID ~= currentTeam)
+    
+    if OUTLINE_CACHE[charKey] == shouldOutline then return end
+    OUTLINE_CACHE[charKey] = shouldOutline
 
     local uAvatarComp2 = selfChar and selfChar.AvatarComponent2
     if not slua.isValid(uAvatarComp2) then return end
 
-    local PPM = import("PostProcessManager").GetInstance()
+    local PPM = GetPPM()
     if not slua.isValid(PPM) or not PPM.IsPPEnabled then return end
 
-    if uPlayerCharacter.TeamID ~= selfChar.TeamID then
+    if shouldOutline then
         PPM.OutlineThickness = 3
         if PPM.OutlineColor then PPM.OutlineColor = { r = 1, g = 0, b = 0, a = 1 } end
         PPM:EnableAvatarOutline(uAvatarComp2, true)
@@ -549,6 +581,7 @@ local function RegisterAvatarOutline(selfChar)
     end
 end
 
+-- OPTIMIZED: mark update every 2 seconds instead of 1
 local function UpdateESP_Mark(selfChar)
     if not Client or not CheckExpiration() then return end
     if not slua.isValid(selfChar) then return end
@@ -559,7 +592,8 @@ local function UpdateESP_Mark(selfChar)
     if local_player.TeamID ~= selfChar.TeamID then
         if selfChar.IsAlive and selfChar:IsAlive() then
             local current_time = os.clock()
-            if current_time - LastMarkUpdate > 1.0 then
+            -- OPTIMIZED: reduced mark update frequency
+            if current_time - LastMarkUpdate > 2.0 then
                 LastMarkUpdate = current_time
                 local head_location = nil
                 pcall(function() head_location = selfChar:GetHeadLocation(false) end)
@@ -583,34 +617,40 @@ local function UpdateESP_Mark(selfChar)
 end
 
 -- ============================================
--- MAIN TIMER SYSTEM
+-- MAIN TIMER SYSTEM (OPTIMIZED - REDUCED FREQUENCY)
 -- ============================================
+local MAIN_TIMER_ACTIVE = false
 local function StartAdvancedSystems()
+    if MAIN_TIMER_ACTIVE then return end
     if not Client or not CheckExpiration() then return end
+    MAIN_TIMER_ACTIVE = true
 
     local function TimerCallback()
         pcall(function()
             local uLocalPlayer = GameplayData.GetPlayerCharacter()
             if not slua.isValid(uLocalPlayer) then return end
 
-            local uTPPCam = uLocalPlayer.ThirdPersonCameraComponent
-
-            local SubsystemMgr = package.loaded["GameLua.GameCore.Module.Subsystem.SubsystemMgr"] or require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
-            if SubsystemMgr then
-                local SettingSubsystem = SubsystemMgr:Get("SettingSubsystem")
-                if SettingSubsystem then
-                    local rawSliderValue = SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90
-                    local targetTPP = rawSliderValue
-
-                    if rawSliderValue > 80 and rawSliderValue <= 90 then
-                        targetTPP = 80 + (rawSliderValue - 80) * 6.0
-                    elseif rawSliderValue > 90 then
-                        targetTPP = rawSliderValue
-                    end
-
-                    if slua.isValid(uTPPCam) and not uLocalPlayer.bIsWeaponAiming then
-                        if uTPPCam.FieldOfView ~= targetTPP then
-                            uTPPCam.FieldOfView = targetTPP
+            -- OPTIMIZED: FOV update every 1s instead of every frame
+            local currentTime = os.clock()
+            if currentTime - LAST_SETTINGS_CHECK > 1.0 then
+                LAST_SETTINGS_CHECK = currentTime
+                local uTPPCam = uLocalPlayer.ThirdPersonCameraComponent
+                local SubsystemMgr = package.loaded["GameLua.GameCore.Module.Subsystem.SubsystemMgr"] or require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+                if SubsystemMgr then
+                    local SettingSubsystem = SubsystemMgr:Get("SettingSubsystem")
+                    if SettingSubsystem then
+                        local rawSliderValue = SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90
+                        local targetTPP = rawSliderValue
+                        if rawSliderValue > 80 and rawSliderValue <= 90 then
+                            targetTPP = 80 + (rawSliderValue - 80) * 6.0
+                        elseif rawSliderValue > 90 then
+                            targetTPP = rawSliderValue
+                        end
+                        if slua.isValid(uTPPCam) and not uLocalPlayer.bIsWeaponAiming then
+                            if uTPPCam.FieldOfView ~= targetTPP and targetTPP ~= LAST_FOV_VALUE then
+                                uTPPCam.FieldOfView = targetTPP
+                                LAST_FOV_VALUE = targetTPP
+                            end
                         end
                     end
                 end
@@ -619,24 +659,32 @@ local function StartAdvancedSystems()
             UpdateESP_Mark(uLocalPlayer)
             RegisterAvatarOutline(uLocalPlayer)
             
-            local p = GameplayData.GetPlayerCharacter()
-            if slua.isValid(p) then
-                ApplyAllModSkins(p)
+            -- OPTIMIZED: skin apply every 3 seconds
+            if currentTime - LAST_SKIN_APPLY > 3.0 then
+                LAST_SKIN_APPLY = currentTime
+                local p = GameplayData.GetPlayerCharacter()
+                if slua.isValid(p) then
+                    ApplyAllModSkins(p)
+                end
+                ApplyLobbyTheme()
             end
-            ApplyLobbyTheme()
         end)
     end
 
     local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.1, true, TimerCallback)
+        -- OPTIMIZED: main timer reduced from 0.1s to 0.3s
+        pc:AddGameTimer(0.3, true, TimerCallback)
     end
 end
 
 -- ============================================
 -- RECEIVE BEGIN PLAY HOOK
 -- ============================================
+local HOOK_APPLIED = false
 local function OnReceiveBeginPlay()
+    if HOOK_APPLIED then return end
+    HOOK_APPLIED = true
     if not CheckExpiration() then
         ShowExpirePopup()
         return
@@ -648,34 +696,19 @@ local function OnReceiveBeginPlay()
             RemoveGrass()
             ReadLiveConfig()
             ApplyLobbyTheme()
+            EnableMagicBullet() -- RUN ONCE
             StartAdvancedSystems()
         end
     end)
 end
 
 -- ============================================
--- HOOK INTO CHARACTER BASE
+-- HOOK INTO CHARACTER BASE (RUN ONCE)
 -- ============================================
 pcall(function()
     local CCharacterBase = require("GameLua.GameCore.Framework.CharacterBase")
-    if CCharacterBase and CCharacterBase.ReceiveBeginPlay then
+    if CCharacterBase and CCharacterBase.ReceiveBeginPlay and not HOOK_APPLIED then
         local original = CCharacterBase.ReceiveBeginPlay
         CCharacterBase.ReceiveBeginPlay = function(self, ...)
             OnReceiveBeginPlay()
-            if original then
-                return original(self, ...)
-            end
-        end
-    end
-end)
-
--- Initialize immediately if possible
-pcall(function()
-    if Client then
-        _G.TryShowWelcome()
-        RemoveGrass()
-        ReadLiveConfig()
-        ApplyLobbyTheme()
-        StartAdvancedSystems()
-    end
-end)
+            if
