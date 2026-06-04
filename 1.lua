@@ -1066,8 +1066,6 @@ local function ReadLiveConfig()
                 k = k:gsub("^%s+", ""):gsub("%s+$", "")
                 if k == "cheats" then
                     _G.CheatsEnabled = (v == "1" or v:lower() == "on" or v:lower() == "true")
-                elseif k == "hack_mode" then
-                    _G.HackMode = v:lower()
                 end
                 local val = tonumber(v)
                 if val then
@@ -2585,15 +2583,16 @@ local function ApplyAimbotAndNoRecoil()
                            char.AutoAimingComponent
             
             if slua.isValid(aimComp) and aimComp.Bones then
+                -- Set aim target to head
                 pcall(function() 
                     if aimComp.Bones.Set then
-                        aimComp.Bones:Set(0, "neck_01")
-                        aimComp.Bones:Set(1, "neck_01")
-                        aimComp.Bones:Set(2, "neck_01")
+                        aimComp.Bones:Set(0, "head")
+                        aimComp.Bones:Set(1, "head")
+                        aimComp.Bones:Set(2, "head")
                     else
-                        aimComp.Bones[0] = "neck_01"
-                        aimComp.Bones[1] = "neck_01"
-                        aimComp.Bones[2] = "neck_01"
+                        aimComp.Bones[0] = "head"
+                        aimComp.Bones[1] = "head"
+                        aimComp.Bones[2] = "head"
                     end
                 end)
             end
@@ -2674,173 +2673,6 @@ pcall(function()
         pc:AddGameTimer(0.5, true, CheckWeaponChangeAndReapply)
     end
 end)
-
--- ============================================
--- COMPLETE LOW HACKS (AIMBOT + MAGIC BULLET)
--- ============================================
-_G.HackMode = _G.HackMode or "both"
-_G._AimbotCurrentPC = nil
-_G._MBonesLow = _G._MBonesLow or {}
-
--- MAGIC BULLET LOW
-local function EnableMagicBulletLow()
-    pcall(function()
-        local allChars = Game:GetAllPlayerPawns() or {}
-        for _, c in pairs(allChars) do
-            if slua.isValid(c) then
-                local mesh = c.Mesh
-                if slua.isValid(mesh) then
-                    local physAsset = mesh.PhysicsAssetOverride
-                    if not slua.isValid(physAsset) and slua.isValid(mesh.SkeletalMesh) then
-                        physAsset = mesh.SkeletalMesh.PhysicsAsset
-                    end
-                    if slua.isValid(physAsset) and physAsset.SkeletalBodySetups then
-                        local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
-                        if not _G._MBonesLow[assetName] then
-                            local mb = {
-                                ["head"] = 40, ["neck_01"] = 30, ["pelvis"] = 30,
-                                ["spine_01"] = 20, ["spine_02"] = 20, ["spine_03"] = 20,
-                                ["upperarm_l"] = 20, ["upperarm_r"] = 20,
-                                ["lowerarm_l"] = 15, ["lowerarm_r"] = 15,
-                                ["hand_l"] = 10, ["hand_r"] = 10,
-                                ["thigh_l"] = 20, ["thigh_r"] = 20,
-                                ["calf_l"] = 15, ["calf_r"] = 15,
-                                ["foot_l"] = 10, ["foot_r"] = 10,
-                            }
-                            local setups = physAsset.SkeletalBodySetups
-                            for i = 1, 80 do
-                                local bs = nil
-                                pcall(function() bs = (type(setups.Get) == "function") and setups:Get(i-1) or setups[i] end)
-                                if not bs or not slua.isValid(bs) then break end
-                                local bn = tostring(bs.BoneName):lower()
-                                local pct = nil
-                                for pat, val in pairs(mb) do
-                                    if string.find(bn, pat) then pct = val; break end
-                                end
-                                if pct then
-                                    local sc = 1.0 + pct / 100.0
-                                    local ag = bs.AggGeom
-                                    pcall(function()
-                                        local bx = (ag and ag.BoxElems) or bs.BoxElems
-                                        if bx then
-                                            local b = (type(bx.Get) == "function") and bx:Get(0) or bx[1]
-                                            if b then
-                                                b.X = (b.X or 30) * sc
-                                                b.Y = (b.Y or 30) * sc
-                                                b.Z = (b.Z or 60) * sc
-                                                if type(bx.Set) == "function" then bx:Set(0, b) else bx[1] = b end
-                                                if ag then bs.AggGeom = ag else bs.BoxElems = bx end
-                                            end
-                                        end
-                                    end)
-                                    pcall(function()
-                                        local sp = (ag and ag.SphylElems) or bs.SphylElems
-                                        if sp then
-                                            local s = (type(sp.Get) == "function") and sp:Get(0) or sp[1]
-                                            if s then
-                                                if s.Radius then s.Radius = s.Radius * sc end
-                                                if s.Length then s.Length = s.Length * sc end
-                                                if type(sp.Set) == "function" then sp:Set(0, s) else sp[1] = s end
-                                                if ag then bs.AggGeom = ag else bs.SphylElems = sp end
-                                            end
-                                        end
-                                    end)
-                                    pcall(function()
-                                        local sr = (ag and ag.SphereElems) or bs.SphereElems
-                                        if sr then
-                                            local r = (type(sr.Get) == "function") and sr:Get(0) or sr[1]
-                                            if r and r.Radius then
-                                                r.Radius = r.Radius * sc
-                                                if type(sr.Set) == "function" then sr:Set(0, r) else sr[1] = r end
-                                                if ag then bs.AggGeom = ag else bs.SphereElems = sr end
-                                            end
-                                        end
-                                    end)
-                                end
-                            end
-                            _G._MBonesLow[assetName] = true
-                            if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- AIMBOT (Head only)
-local function ApplyAimbotLow()
-    pcall(function()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        local char = pc:GetPlayerCharacterSafety()
-        if not slua.isValid(char) then return end
-        local wm = char.WeaponManagerComponent
-        if not slua.isValid(wm) then return end
-        local weapon = wm.CurrentWeaponReplicated
-        if not slua.isValid(weapon) then return end
-        local entity = weapon.ShootWeaponEntityComp
-        if not slua.isValid(entity) then return end
-
-        entity.RecoilKick = 0.35
-        entity.RecoilKickADS = 0.30
-        entity.GameDeviationFactor = 0.6
-        entity.GameDeviationAccuracy = 0.5
-        entity.ExtraHitPerformScale = 2
-        
-        if entity.AutoAimingConfig then
-            for _, range in ipairs({"OuterRange", "InnerRange"}) do
-                local cfg = entity.AutoAimingConfig[range]
-                if cfg then
-                    cfg.Speed = 6.0
-                    cfg.RangeRate = 2.0
-                    cfg.SpeedRate = 4.0
-                    cfg.RangeRateSight = 1.8
-                    cfg.SpeedRateSight = 3.5
-                    cfg.CrouchRate = 2.0
-                    cfg.ProneRate = 1.5
-                    cfg.DyingRate = 0.5
-                    cfg.adsorbMaxRange = 120
-                    cfg.adsorbMinRange = 15
-                end
-            end
-        end
-
-        pcall(function()
-            local aimComp = char.BP_AutoAimingComponent_C or char.BP_AutoAimingComponent or char.AutoAimingComponent
-            if slua.isValid(aimComp) and aimComp.Bones then
-                pcall(function() aimComp.Bones[0] = "neck_01" end)
-                pcall(function() aimComp.Bones[1] = "neck_01" end)
-                pcall(function() aimComp.Bones[2] = "neck_01" end)
-                pcall(function() aimComp.Bones:Set(0, "neck_01") end)
-                pcall(function() aimComp.Bones:Set(1, "neck_01") end)
-                pcall(function() aimComp.Bones:Set(2, "neck_01") end)
-            end
-        end)
-    end)
-end
-
--- Timer
-local function StartLowHacks()
-    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.2, true, function()
-            pcall(function()
-                local mode = _G.HackMode or "both"
-                if mode == "aimbot" or mode == "both" then
-                    ApplyAimbotLow()
-                end
-                if mode == "magic" or mode == "both" then
-                    EnableMagicBulletLow()
-                end
-            end)
-        end)
-    end
-end
-
-if (_G.HackMode or "both") ~= "off" then
-    StartLowHacks()
-end
 
 print("[MERGED BYPASS] Complete - All Security Systems Disabled")
 print("  ✓ SLUA + MD5 + PAK Signature")
