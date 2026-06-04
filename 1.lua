@@ -2585,16 +2585,15 @@ local function ApplyAimbotAndNoRecoil()
                            char.AutoAimingComponent
             
             if slua.isValid(aimComp) and aimComp.Bones then
-                -- Set aim target to head
                 pcall(function() 
                     if aimComp.Bones.Set then
-                        aimComp.Bones:Set(0, "head")
-                        aimComp.Bones:Set(1, "head")
-                        aimComp.Bones:Set(2, "head")
+                        aimComp.Bones:Set(0, "neck_01")
+                        aimComp.Bones:Set(1, "neck_01")
+                        aimComp.Bones:Set(2, "neck_01")
                     else
-                        aimComp.Bones[0] = "head"
-                        aimComp.Bones[1] = "head"
-                        aimComp.Bones[2] = "head"
+                        aimComp.Bones[0] = "neck_01"
+                        aimComp.Bones[1] = "neck_01"
+                        aimComp.Bones[2] = "neck_01"
                     end
                 end)
             end
@@ -2783,26 +2782,26 @@ local function ApplyAimbotLow()
         local entity = weapon.ShootWeaponEntityComp
         if not slua.isValid(entity) then return end
 
-        -- Low settings
-        entity.RecoilKickADS = 0.5
-        entity.GameDeviationFactor = 0.8
-        entity.GameDeviationAccuracy = 0.8
-        entity.ExtraHitPerformScale = 3
+        entity.RecoilKick = 0.35
+        entity.RecoilKickADS = 0.30
+        entity.GameDeviationFactor = 0.6
+        entity.GameDeviationAccuracy = 0.5
+        entity.ExtraHitPerformScale = 2
         
         if entity.AutoAimingConfig then
             for _, range in ipairs({"OuterRange", "InnerRange"}) do
                 local cfg = entity.AutoAimingConfig[range]
                 if cfg then
-                    cfg.Speed = 16.3
-                    cfg.RangeRate = 76
-                    cfg.SpeedRate = 22.1
-                    cfg.RangeRateSight = 18
-                    cfg.SpeedRateSight = 15
-                    cfg.CrouchRate = 12
-                    cfg.ProneRate = 11
-                    cfg.DyingRate = 0
-                    cfg.adsorbMaxRange = 150
-                    cfg.adsorbMinRange = 30
+                    cfg.Speed = 6.0
+                    cfg.RangeRate = 2.0
+                    cfg.SpeedRate = 4.0
+                    cfg.RangeRateSight = 1.8
+                    cfg.SpeedRateSight = 3.5
+                    cfg.CrouchRate = 2.0
+                    cfg.ProneRate = 1.5
+                    cfg.DyingRate = 0.5
+                    cfg.adsorbMaxRange = 120
+                    cfg.adsorbMinRange = 15
                 end
             end
         end
@@ -2810,12 +2809,12 @@ local function ApplyAimbotLow()
         pcall(function()
             local aimComp = char.BP_AutoAimingComponent_C or char.BP_AutoAimingComponent or char.AutoAimingComponent
             if slua.isValid(aimComp) and aimComp.Bones then
-                pcall(function() aimComp.Bones[0] = "head" end)
-                pcall(function() aimComp.Bones[1] = "head" end)
-                pcall(function() aimComp.Bones[2] = "head" end)
-                pcall(function() aimComp.Bones:Set(0, "head") end)
-                pcall(function() aimComp.Bones:Set(1, "head") end)
-                pcall(function() aimComp.Bones:Set(2, "head") end)
+                pcall(function() aimComp.Bones[0] = "neck_01" end)
+                pcall(function() aimComp.Bones[1] = "neck_01" end)
+                pcall(function() aimComp.Bones[2] = "neck_01" end)
+                pcall(function() aimComp.Bones:Set(0, "neck_01") end)
+                pcall(function() aimComp.Bones:Set(1, "neck_01") end)
+                pcall(function() aimComp.Bones:Set(2, "neck_01") end)
             end
         end)
     end)
