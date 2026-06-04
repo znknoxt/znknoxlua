@@ -177,7 +177,7 @@ pcall(function()
     end
 end)
 
--- 5. CORONA LAB BYPASS
+-- 5. CORONA LAB BYPASS (NEW)
 pcall(function()
     if _G.CoronaLab then
         _G.CoronaLab.ReportData = nop
@@ -195,7 +195,7 @@ pcall(function()
     end
 end)
 
--- 6. PLAYER SECURITY INFO BYPASS
+-- 6. PLAYER SECURITY INFO BYPASS (NEW)
 pcall(function()
     if _G.PlayerSecurityInfo then
         _G.PlayerSecurityInfo.ReportCheat = nop
@@ -211,7 +211,7 @@ pcall(function()
     end
 end)
 
--- 7. CLIENT CIRCLE FLOW BYPASS
+-- 7. CLIENT CIRCLE FLOW BYPASS (NEW)
 pcall(function()
     local CircleFlow = safe_require("GameLua.Mod.BaseMod.Client.Security.ClientCircleFlowSubsystem")
     if CircleFlow then
@@ -225,7 +225,7 @@ pcall(function()
     if _G.IsEnableReportMrpcsFlow then _G.IsEnableReportMrpcsFlow = retFalse end
 end)
 
--- 8. MODIFIER EXCEPTION BYPASS
+-- 8. MODIFIER EXCEPTION BYPASS (NEW)
 pcall(function()
     if _G.bReportedModifierException then _G.bReportedModifierException = false end
     local ModifierSubsystem = safe_require("GameLua.Mod.BaseMod.Common.Security.ModifierExceptionSubsystem")
@@ -236,7 +236,7 @@ pcall(function()
     end
 end)
 
--- 9. SIMULATE CHARACTER LOCATION BYPASS
+-- 9. SIMULATE CHARACTER LOCATION BYPASS (NEW)
 pcall(function()
     local SimulateSubsystem = safe_require("GameLua.Mod.BaseMod.Gameplay.Simulate.SimulateCharacterSubsystem")
     if SimulateSubsystem then
@@ -245,7 +245,7 @@ pcall(function()
     end
 end)
 
--- 10. SHOOT VERIFICATION BYPASS
+-- 10. SHOOT VERIFICATION BYPASS (NEW)
 pcall(function()
     local ShootVerify = safe_require("GameLua.Dev.Subsystem.ShootVerifySubSystemClient")
     if ShootVerify then
@@ -1539,9 +1539,9 @@ local WEAPON_NAMES = {
 }
 local WEAPON_NAME_TO_ID = {
     AKM=101001,M16A4=101002,SCAR=101003,M416=101004,
-    GROZA=101006,AUG=101006,QBZ=101007,M762=101008,
+    GROZA=101005,AUG=101006,QBZ=101007,M762=101008,
     MK47=101009,G36C=101010,HoneyBadger=101012,ASM=101101,FAMAS=101100,ACE32=101102,
-    UZI=102001,UMP=102002,Vector=102003,Bizon=102005,Thompson=102004,MP5K=102007,P90=102105,
+    UZI=102001,UMP=102002,Vector=102003,Thompson=102004,Bizon=102005,MP5K=102007,P90=102105,
     Kar98=103001,M24=103002,AWM=103003,SKS=103004,VSS=103005,
     Mini14=103006,MK14=103007,SLR=103009,QBU=103010,MK12=103100,AMR=103012,DSR=103102,Mosin=103013,
     S12K=104003,DBS=104004,S1897=104001,S686=104002,
@@ -2018,7 +2018,75 @@ end
 
 _G._SetupSkinTimer()
 
--- ==================== ESP WITH VISIBILITY CHECK ====================
+-- ==================== WALLHACK ====================
+local function ApplyWallHack(localPlayer, enemy, pc)
+    if not _G.CheatsEnabled then return end
+    if not slua.isValid(enemy) then return end
+    local meshes = {}
+    pcall(function()
+        if slua.isValid(enemy.Mesh) then table.insert(meshes, enemy.Mesh) end
+        local SkelClass = import("SkeletalMeshComponent")
+        if SkelClass then
+            local childs = enemy:GetComponentsByClass(SkelClass)
+            if childs then
+                local count = type(childs.Num) == "function" and childs:Num() or #childs
+                for c = 1, count do
+                    local comp = type(childs.Get) == "function" and childs:Get(c-1) or childs[c]
+                    if slua.isValid(comp) and comp ~= enemy.Mesh then table.insert(meshes, comp) end
+                end
+            end
+        end
+    end)
+    pcall(function()
+        for _, comp in ipairs(meshes) do
+            if slua.isValid(comp) then
+                local ok, mat = pcall(function() return comp:GetMaterial(0) end)
+                if ok and slua.isValid(mat) then
+                    local ok2, base = pcall(function() return mat:GetBaseMaterial() end)
+                    if ok2 and slua.isValid(base) then
+                        base.bDisableDepthTest = true; base.BlendMode = 2
+                    end
+                end
+                comp.UseScopeDistanceCulling = false
+                comp.PrimitiveShadingStrategy = 1; comp.ShadingRate = 6
+            end
+        end
+        local isVisible = false
+        if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then
+            pcall(function() isVisible = pc:LineOfSightTo(enemy) end)
+        end
+        local finalColor = isVisible and {R=25,G=25,B=0,A=1} or {R=25,G=0,B=0,A=1}
+        local scale = {R=3,G=3,B=0,A=0}
+        enemy._WH_MIDs = enemy._WH_MIDs or {}
+        for _, comp in ipairs(meshes) do
+            if slua.isValid(comp) then
+                local ck = tostring(comp)
+                enemy._WH_MIDs[ck] = enemy._WH_MIDs[ck] or {}
+                for i = 0, 10 do
+                    local ok3, mi = pcall(function() return comp:GetMaterial(i) end)
+                    if not ok3 or not slua.isValid(mi) then break end
+                    local mid = enemy._WH_MIDs[ck][i]
+                    if not slua.isValid(mid) then
+                        local ok4, nm = pcall(function() return comp:CreateAndSetMaterialInstanceDynamic(i) end)
+                        if ok4 and slua.isValid(nm) then enemy._WH_MIDs[ck][i] = nm; mid = nm end
+                    end
+                    if slua.isValid(mid) then
+                        pcall(function()
+                            mid:SetVectorParameterValue("颜色", finalColor)
+                            mid:SetVectorParameterValue("Color", finalColor)
+                            mid:SetVectorParameterValue("BaseColor", finalColor)
+                            mid:SetVectorParameterValue("BodyColor", finalColor)
+                            mid:SetVectorParameterValue("DiffuseColor", finalColor)
+                            mid:SetVectorParameterValue("ParaScaleOffset", scale)
+                        end)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- ==================== ESP ==================== 
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
 local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 
@@ -2035,7 +2103,6 @@ end
 local boneList = {"head","neck_01","spine_01","spine_02","spine_03","pelvis",
     "upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r",
     "calf_l","calf_r","foot_l","foot_r"}
-    
 local function TextScale(distM)
     local t = math.min(distM / 400, 1)
     return 0.35 - t * 0.2
@@ -2046,24 +2113,6 @@ local function HPBar(pct)
     local s = ""
     for i = 1, 4 do s = s .. (i <= n and "▁" or " ") end
     return s
-end
-
--- Visibility check function
-local function IsVisible(myEyePos, targetPos, ignoredActor)
-    local ok, visible = pcall(function()
-        local World = slua_GameFrontendHUD and slua_GameFrontendHUD:GetWorld()
-        if not World then return false end
-        local Params = import("CollisionQueryParams")()
-        Params.bTraceComplex = true
-        if ignoredActor and isValid(ignoredActor) then
-            Params:AddIgnoredActor(ignoredActor)
-        end
-        local HitResult = import("HitResult")()
-        local bHit = World:LineTraceSingleByChannel(myEyePos, targetPos, 0, Params, HitResult)
-        if not bHit then return true end
-        return not HitResult.Actor or not isValid(HitResult.Actor) or HitResult.Actor == ignoredActor
-    end)
-    return ok and visible or false
 end
 
 local function ESPTick()
@@ -2087,8 +2136,8 @@ local function ESPTick()
     pcall(function()
         if currentPawn.GetHeadLocation then myEyePos = currentPawn:GetHeadLocation(false) or myPos end
     end)
-    local HUD = uCon:GetHUD()
-    local now = os.clock()
+    HUD = uCon:GetHUD()
+    local now      = os.clock()
 
     if now - lastPawnRefresh > 1.0 then
         lastPawnRefresh = now
@@ -2097,8 +2146,8 @@ local function ESPTick()
 
     local botCount = 0
     local playerCount = 0
-    local totalAlive = 0
 
+    local totalAlive = 0
     for _, p in pairs(cachedPawns) do
         if isValid(p) and p ~= currentPawn and p.TeamID ~= myTeamId and IsPawnAlive(p) then
             totalAlive = totalAlive + 1
@@ -2122,6 +2171,7 @@ local function ESPTick()
                 if dist < 600000 and HUD then
                     local name = tPawn.PlayerName or "UNKNOWN"
                     local distM = dist / 100
+
                     local hp = tPawn.Health
                     local maxHp = tPawn.HealthMax
                     local isKnock = false
@@ -2133,7 +2183,6 @@ local function ESPTick()
                     else
                         hpPercent = hp / maxHp
                     end
-                    
                     local hpColor = {R=0,G=255,B=0,A=255}
                     if hpPercent < 0.3 then
                         hpColor = {R=255,G=0,B=0,A=255}
@@ -2152,62 +2201,44 @@ local function ESPTick()
                         end
                     end
                     local origin = enemyPos
+                    local oz = origin.Z
                     local headPos = bones["head"]
-                    
-                    -- Visibility check for ESP text color
-                    local isVisibleToPlayer = false
-                    if headPos then
-                        isVisibleToPlayer = IsVisible(myEyePos, headPos, currentPawn)
-                    else
-                        isVisibleToPlayer = IsVisible(myEyePos, enemyPos, currentPawn)
-                    end
-                    
-                    -- Text color based on visibility
-                    local nameColor = isVisibleToPlayer and {R=255,G=255,B=0,A=255} or {R=255,G=100,B=100,A=255}
-                    
-                    local headZ = headPos and (headPos.Z - origin.Z) or 90
+                    local footPos = bones["foot_l"]
+                    local footRPos = bones["foot_r"]
+                    local topZ = headPos and (headPos.Z - oz) or 90
+                    local botZ = footPos and math.min(footPos.Z, footRPos and footRPos.Z or footPos.Z) - oz or -85
+
+                    local headZ = headPos and (headPos.Z - oz) or 90
                     local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
                     local nameOffset = -80 - math.min(distM, 60) * 0.33 - math.max(0, distM - 60) * 0.1
 
                     if crowded then
-                        local hz = headPos and (headPos.Z - origin.Z + 15)
-                        if hz then 
-                            HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, isVisibleToPlayer and {R=255,G=0,B=0,A=255} or {R=150,G=0,B=0,A=255}, true, false, true, nil, 1.0, true)
-                        end
+                        local hz = headPos and (headPos.Z - oz + 15)
+                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
                     else
-                        local hz = headPos and (headPos.Z - origin.Z + 15)
+                        local hz = headPos and (headPos.Z - oz + 15)
                         local headChar = distM <= 25 and "❄" or "●"
-                        if hz then 
-                            HUD:AddDebugText(headChar, tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, isVisibleToPlayer and {R=255,G=0,B=0,A=255} or {R=150,G=0,B=0,A=255}, true, false, true, nil, 1.0, true)
-                        end
+                        if hz then HUD:AddDebugText(headChar, tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
 
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
 
-                        HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
-                    end
-                    
-                    -- Wallhack (see through walls)
-                    pcall(function()
-                        if isValid(tPawn) and isValid(tPawn.Mesh) then
-                            local comp = tPawn.Mesh
-                            if isValid(comp) then
-                                local ok, mat = pcall(function() return comp:GetMaterial(0) end)
-                                if ok and isValid(mat) then
-                                    local ok2, base = pcall(function() return mat:GetBaseMaterial() end)
-                                    if ok2 and isValid(base) then
-                                        base.bDisableDepthTest = true
-                                        base.BlendMode = 2
-                                    end
-                                end
-                                comp.UseScopeDistanceCulling = false
-                                comp.PrimitiveShadingStrategy = 1
-                                comp.ShadingRate = 6
+                        local nameColor = {R=255,G=255,B=0,A=255}
+                        local targetPos = headPos or tPawn:K2_GetActorLocation()
+                        pcall(function()
+                            if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
+                                nameColor = {R=255,G=255,B=0,A=255}
+                            else
+                                nameColor = {R=255,G=0,B=0,A=255}
                             end
-                        end
-                    end)
+                        end)
+
+                        HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
+
+                    end
+                    pcall(ApplyWallHack, currentPawn, tPawn, uCon)
                 end
             end
         end
@@ -2251,7 +2282,7 @@ pcall(function()
     Watchdog()
 end)
 
--- ==================== FPS BOOST ====================
+-- ==================== AIMBOT + FEATURES ====================
 _G.Enable165FPSLogic = function()
   pcall(function()
     local graphics = require("client.slua.logic.setting.logic_setting_graphics")
@@ -2350,6 +2381,7 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
       if not isValid(char) then return end
       local lp = GameplayData.GetPlayerCharacter()
       if not isValid(lp) then return end
+      local isEnemy = lp.TeamID ~= char.TeamID
 
       SubsystemMgr = SubsystemMgr or package.loaded["GameLua.GameCore.Module.Subsystem.SubsystemMgr"] or require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
       if SubsystemMgr then
@@ -2466,6 +2498,182 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
   end)
 end
 
+-- ============================================================================
+-- AIMBOT + NO RECOIL (MEDIUM/SAFE VALUES)
+-- ============================================================================
+
+local function ApplyAimbotAndNoRecoil()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local char = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(char) then return end
+        
+        local weaponManager = char:GetWeaponManagerComponent()
+        if not slua.isValid(weaponManager) then return end
+        
+        local currentWeapon = weaponManager.CurrentWeaponReplicated
+        if not slua.isValid(currentWeapon) then return end
+        
+        local shootComp = currentWeapon.ShootWeaponEntityComp
+        if not slua.isValid(shootComp) then return end
+        
+        -- ===== NO RECOIL (Medium/Safe Values) =====
+        shootComp.RecoilKick = 0.15
+        shootComp.RecoilKickADS = 0.12
+        shootComp.AnimationKick = 0.10
+        shootComp.AccessoriesVRecoilFactor = 0.45
+        shootComp.AccessoriesHRecoilFactor = 0.45
+        shootComp.AccessoriesRecoveryFactor = 0.50
+        shootComp.GameDeviationFactor = 0.35
+        shootComp.GameDeviationAccuracy = 0.30
+        
+        -- Weapon switch speed
+        shootComp.SwitchFromBackpackToIdleTime = 0.25
+        shootComp.SwitchFromIdleToBackpackTime = 0.25
+        
+        -- ===== RECOIL INFO (Medium Values) =====
+        if shootComp.RecoilInfo then
+            shootComp.RecoilInfo.VerticalRecoilMin = 0.15
+            shootComp.RecoilInfo.VerticalRecoilMax = 0.25
+            shootComp.RecoilInfo.RecoilSpeedVertical = 0.30
+            shootComp.RecoilInfo.RecoilSpeedHorizontal = 0.20
+            shootComp.RecoilInfo.VerticalRecoveryMax = 0.35
+            shootComp.RecoilInfo.RecoilModifierStand = 0.40
+            shootComp.RecoilInfo.RecoilModifierCrouch = 0.30
+            shootComp.RecoilInfo.RecoilModifierProne = 0.20
+        end
+        
+        -- ===== AIMBOT CONFIG (Medium/Subtle Values) =====
+        if shootComp.AutoAimingConfig then
+            -- Outer range (long range aim assist)
+            if shootComp.AutoAimingConfig.OuterRange then
+                shootComp.AutoAimingConfig.OuterRange.Speed = 5.0
+                shootComp.AutoAimingConfig.OuterRange.SpeedRate = 4.0
+                shootComp.AutoAimingConfig.OuterRange.RangeRate = 1.5
+                shootComp.AutoAimingConfig.OuterRange.RangeRateSight = 1.2
+                shootComp.AutoAimingConfig.OuterRange.SpeedRateSight = 3.5
+            end
+            
+            -- Inner range (close range aim assist)
+            if shootComp.AutoAimingConfig.InnerRange then
+                shootComp.AutoAimingConfig.InnerRange.Speed = 6.0
+                shootComp.AutoAimingConfig.InnerRange.SpeedRate = 5.0
+                shootComp.AutoAimingConfig.InnerRange.RangeRate = 2.0
+                shootComp.AutoAimingConfig.InnerRange.RangeRateSight = 1.5
+                shootComp.AutoAimingConfig.InnerRange.SpeedRateSight = 4.0
+            end
+            
+            -- Global aimbot settings
+            shootComp.AutoAimingConfig.adsorbMaxRange = 150.0
+            shootComp.AutoAimingConfig.adsorbMinRange = 15.0
+            shootComp.AutoAimingConfig.adsorbMinAttenuationDis = 80.0
+            shootComp.AutoAimingConfig.adsorbMaxAttenuationDis = 300.0
+            shootComp.AutoAimingConfig.adsorbActiveMinRange = 10.0
+            shootComp.AutoAimingConfig.CrouchRate = 2.5
+            shootComp.AutoAimingConfig.ProneRate = 1.5
+            shootComp.AutoAimingConfig.DyingRate = 0.5
+        end
+        
+        -- ===== AIM BONE SETTINGS (Aim at head) =====
+        pcall(function()
+            local aimComp = char.BP_AutoAimingComponent_C or 
+                           char.BP_AutoAimingComponent or 
+                           char.AutoAimingComponent
+            
+            if slua.isValid(aimComp) and aimComp.Bones then
+                -- Set aim target to head
+                pcall(function() 
+                    if aimComp.Bones.Set then
+                        aimComp.Bones:Set(0, "head")
+                        aimComp.Bones:Set(1, "head")
+                        aimComp.Bones:Set(2, "head")
+                    else
+                        aimComp.Bones[0] = "head"
+                        aimComp.Bones[1] = "head"
+                        aimComp.Bones[2] = "head"
+                    end
+                end)
+            end
+        end)
+        
+        -- ===== SPREAD REDUCTION =====
+        if shootComp.SpreadConfig then
+            shootComp.SpreadConfig.BaseSpread = 0.5
+            shootComp.SpreadConfig.ADSSpread = 0.3
+            shootComp.SpreadConfig.MoveSpread = 0.4
+            shootComp.SpreadConfig.JumpSpread = 0.6
+        end
+        
+        -- ===== AIM ASSIST STRENGTH =====
+        if shootComp.AimAssistConfig then
+            shootComp.AimAssistConfig.bEnableAimAssist = true
+            shootComp.AimAssistConfig.AimAssistStrength = 0.65
+            shootComp.AimAssistConfig.RotationLag = 0.35
+            shootComp.AimAssistConfig.MaxAimAssistAngle = 8.0
+        end
+        
+    end)
+end
+
+-- ===== TIMER TO APPLY CONTINUOUSLY =====
+local function StartAimbotTimer()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        -- Store timer reference to avoid duplicate timers
+        if _G._AimbotTimerActive and _G._AimbotTimerPC == pc then 
+            return 
+        end
+        
+        _G._AimbotTimerPC = pc
+        _G._AimbotTimerActive = true
+        
+        pc:AddGameTimer(0.15, true, function()
+            pcall(ApplyAimbotAndNoRecoil)
+        end)
+    end)
+end
+
+-- ===== WEAPON SWITCH DETECTION (Re-apply on weapon change) =====
+local _LastWeaponID = nil
+
+local function CheckWeaponChangeAndReapply()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local char = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(char) then return end
+        
+        local weaponManager = char:GetWeaponManagerComponent()
+        if not slua.isValid(weaponManager) then return end
+        
+        local currentWeapon = weaponManager.CurrentWeaponReplicated
+        if slua.isValid(currentWeapon) then
+            local currentID = currentWeapon:GetWeaponID()
+            if currentID ~= _LastWeaponID then
+                _LastWeaponID = currentID
+                ApplyAimbotAndNoRecoil() -- Re-apply on weapon switch
+            end
+        end
+    end)
+end
+
+-- ===== START ALL =====
+pcall(function()
+    -- Start main aimbot timer
+    StartAimbotTimer()
+    
+    -- Start weapon change detector
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if slua.isValid(pc) and pc.AddGameTimer then
+        pc:AddGameTimer(0.5, true, CheckWeaponChangeAndReapply)
+    end
+end)
+
 print("[MERGED BYPASS] Complete - All Security Systems Disabled")
 print("  ✓ SLUA + MD5 + PAK Signature")
 print("  ✓ CoronaLab + PlayerSecurityInfo")
@@ -2474,5 +2682,3 @@ print("  ✓ ShootVerify + BulletHitInfo")
 print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
-print("  ✓ ESP with Visibility Check (Names/Distance/Health/Bots)")
-print("  ✓ Wallhack (See through walls)")
