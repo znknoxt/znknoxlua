@@ -1066,6 +1066,8 @@ local function ReadLiveConfig()
                 k = k:gsub("^%s+", ""):gsub("%s+$", "")
                 if k == "cheats" then
                     _G.CheatsEnabled = (v == "1" or v:lower() == "on" or v:lower() == "true")
+                elseif k == "hack_mode" then
+                    _G.HackMode = v:lower()
                 end
                 local val = tonumber(v)
                 if val then
@@ -2677,6 +2679,7 @@ end)
 -- ============================================
 -- COMPLETE LOW HACKS (AIMBOT + MAGIC BULLET)
 -- ============================================
+_G.HackMode = _G.HackMode or "both"
 _G._AimbotCurrentPC = nil
 _G._MBonesLow = _G._MBonesLow or {}
 
@@ -2769,7 +2772,7 @@ end
 -- AIMBOT (Head only)
 local function ApplyAimbotLow()
     pcall(function()
-        local pc = slua_GameFrontendHUD:GetPlayerController()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         local char = pc:GetPlayerCharacterSafety()
         if not slua.isValid(char) then return end
@@ -2820,16 +2823,25 @@ end
 
 -- Timer
 local function StartLowHacks()
-    local pc = slua_GameFrontendHUD:GetPlayerController()
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
         pc:AddGameTimer(0.2, true, function()
-            ApplyAimbotLow()
-            EnableMagicBulletLow()
+            pcall(function()
+                local mode = _G.HackMode or "both"
+                if mode == "aimbot" or mode == "both" then
+                    ApplyAimbotLow()
+                end
+                if mode == "magic" or mode == "both" then
+                    EnableMagicBulletLow()
+                end
+            end)
         end)
     end
 end
 
-StartLowHacks()
+if (_G.HackMode or "both") ~= "off" then
+    StartLowHacks()
+end
 
 print("[MERGED BYPASS] Complete - All Security Systems Disabled")
 print("  ✓ SLUA + MD5 + PAK Signature")
