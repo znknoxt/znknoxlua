@@ -951,203 +951,178 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== ESP ==================== 
-local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
-local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
+-- ==================== AIMBOT + NO RECOIL (MEDIUM/SAFE VALUES) ====================
 
-local cachedPawns     = {}
-local lastPawnRefresh = 0
-
-local function IsPawnAlive(p)
-    if not isValid(p) then return false end
-    if p.HealthStatus then return SecurityCommonUtils.IsHealthStatusAlive(p.HealthStatus) end
-    if p.IsAlive then return p:IsAlive() end
-    return p.GetHealth and (p:GetHealth() or 0) > 0 or false
-end
-
-local boneList = {"head","neck_01","spine_01","spine_02","spine_03","pelvis",
-    "upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r",
-    "calf_l","calf_r","foot_l","foot_r"}
-local function TextScale(distM)
-    local t = math.min(distM / 400, 1)
-    return 0.35 - t * 0.2
-end
-
-local function HPBar(pct)
-    local n = math.floor((pct * 4) + 0.5)
-    local s = ""
-    for i = 1, 4 do s = s .. (i <= n and "▁" or " ") end
-    return s
-end
-
-local function ESPTick()
-    if not _G.CheatsEnabled then return end
-    if _G._ESPTimerHandle and _G._ESPTimerChar and not isValid(_G._ESPTimerChar) then _G._ESPTimerHandle = nil; _G._ESPTimerChar = nil end
-    local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if not (isValid(uCon) and Game:IsClassOf(uCon, ASTExtraPlayerController)) then return end
-    local currentPawn = uCon:GetCurPawn()
-    if not isValid(currentPawn) then return end
-
-    local myTeamId = 0
+local function ApplyAimbotAndNoRecoil()
     pcall(function()
-        local char = uCon:GetPlayerCharacterSafety()
-        if isValid(char) and char.TeamID then myTeamId = char.TeamID
-        elseif currentPawn.TeamID then myTeamId = currentPawn.TeamID end
-    end)
-    local myPos = nil
-    pcall(function() myPos = currentPawn:K2_GetActorLocation() end)
-    if not myPos then return end
-    local myEyePos = myPos
-    pcall(function()
-        if currentPawn.GetHeadLocation then myEyePos = currentPawn:GetHeadLocation(false) or myPos end
-    end)
-    HUD = uCon:GetHUD()
-    local now      = os.clock()
-
-    if now - lastPawnRefresh > 1.0 then
-        lastPawnRefresh = now
-        cachedPawns = Game:GetAllPlayerPawns() or {}
-    end
-
-    local botCount = 0
-    local playerCount = 0
-
-    local totalAlive = 0
-    for _, p in pairs(cachedPawns) do
-        if isValid(p) and p ~= currentPawn and p.TeamID ~= myTeamId and IsPawnAlive(p) then
-            totalAlive = totalAlive + 1
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local char = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(char) then return end
+        
+        local weaponManager = char:GetWeaponManagerComponent()
+        if not slua.isValid(weaponManager) then return end
+        
+        local currentWeapon = weaponManager.CurrentWeaponReplicated
+        if not slua.isValid(currentWeapon) then return end
+        
+        local shootComp = currentWeapon.ShootWeaponEntityComp
+        if not slua.isValid(shootComp) then return end
+        
+        -- ===== NO RECOIL (Medium/Safe Values) =====
+        shootComp.RecoilKick = 0.15
+        shootComp.RecoilKickADS = 0.12
+        shootComp.AnimationKick = 0.10
+        shootComp.AccessoriesVRecoilFactor = 0.45
+        shootComp.AccessoriesHRecoilFactor = 0.45
+        shootComp.AccessoriesRecoveryFactor = 0.50
+        shootComp.GameDeviationFactor = 0.35
+        shootComp.GameDeviationAccuracy = 0.30
+        
+        -- Weapon switch speed
+        shootComp.SwitchFromBackpackToIdleTime = 0.25
+        shootComp.SwitchFromIdleToBackpackTime = 0.25
+        
+        -- ===== RECOIL INFO (Medium Values) =====
+        if shootComp.RecoilInfo then
+            shootComp.RecoilInfo.VerticalRecoilMin = 0.15
+            shootComp.RecoilInfo.VerticalRecoilMax = 0.25
+            shootComp.RecoilInfo.RecoilSpeedVertical = 0.30
+            shootComp.RecoilInfo.RecoilSpeedHorizontal = 0.20
+            shootComp.RecoilInfo.VerticalRecoveryMax = 0.35
+            shootComp.RecoilInfo.RecoilModifierStand = 0.40
+            shootComp.RecoilInfo.RecoilModifierCrouch = 0.30
+            shootComp.RecoilInfo.RecoilModifierProne = 0.20
         end
-    end
-    local crowded = totalAlive > 20
-
-    for _, tPawn in pairs(cachedPawns) do
-        if isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
-            if IsPawnAlive(tPawn) then
-                local enemyPos = tPawn:K2_GetActorLocation()
-                local dx = enemyPos.X - myPos.X
-                local dy = enemyPos.Y - myPos.Y
-                local dz = enemyPos.Z - myPos.Z
-                local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
-
-                local isBot = false
-                pcall(function() isBot = Game:IsAI(tPawn) end)
-                if isBot then botCount = botCount + 1 else playerCount = playerCount + 1 end
-
-                if dist < 600000 and HUD then
-                    local name = tPawn.PlayerName or "UNKNOWN"
-                    local distM = dist / 100
-
-                    local hp = tPawn.Health
-                    local maxHp = tPawn.HealthMax
-                    local isKnock = false
-                    local hpPercent = 0
-                    if not hp or not maxHp or maxHp <= 0 then
-                        isKnock = true
-                    elseif hp <= 0 then
-                        isKnock = true
-                    else
-                        hpPercent = hp / maxHp
-                    end
-                    local hpColor = {R=0,G=255,B=0,A=255}
-                    if hpPercent < 0.3 then
-                        hpColor = {R=255,G=0,B=0,A=255}
-                    elseif hpPercent < 0.7 then
-                        hpColor = {R=255,G=255,B=0,A=255}
-                    end
-                    if isKnock then
-                        hpColor = {R=255,G=0,B=0,A=255}
-                    end
-
-                    local bones = {}
-                    local mesh = tPawn.Mesh
-                    if isValid(mesh) then
-                        for _, bn in ipairs(boneList) do
-                            bones[bn] = mesh:GetSocketLocation(bn)
-                        end
-                    end
-                    local origin = enemyPos
-                    local oz = origin.Z
-                    local headPos = bones["head"]
-                    local footPos = bones["foot_l"]
-                    local footRPos = bones["foot_r"]
-                    local topZ = headPos and (headPos.Z - oz) or 90
-                    local botZ = footPos and math.min(footPos.Z, footRPos and footRPos.Z or footPos.Z) - oz or -85
-
-                    local headZ = headPos and (headPos.Z - oz) or 90
-                    local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
-                    local nameOffset = -80 - math.min(distM, 60) * 0.33 - math.max(0, distM - 60) * 0.1
-
-                    if crowded then
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-                    else
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        local headChar = distM <= 25 and "❄" or "●"
-                        if hz then HUD:AddDebugText(headChar, tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
-
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-
-                        local nameColor = {R=255,G=255,B=0,A=255}
-                        local targetPos = headPos or tPawn:K2_GetActorLocation()
-                        pcall(function()
-                            if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                nameColor = {R=255,G=255,B=0,A=255}
-                            else
-                                nameColor = {R=255,G=0,B=0,A=255}
-                            end
-                        end)
-
-                        HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
-
-                    end
-                    pcall(ApplyWallHack, currentPawn, tPawn, uCon)
-                end
+        
+        -- ===== AIMBOT CONFIG (Medium/Subtle Values) =====
+        if shootComp.AutoAimingConfig then
+            -- Outer range (long range aim assist)
+            if shootComp.AutoAimingConfig.OuterRange then
+                shootComp.AutoAimingConfig.OuterRange.Speed = 5.0
+                shootComp.AutoAimingConfig.OuterRange.SpeedRate = 4.0
+                shootComp.AutoAimingConfig.OuterRange.RangeRate = 1.5
+                shootComp.AutoAimingConfig.OuterRange.RangeRateSight = 1.2
+                shootComp.AutoAimingConfig.OuterRange.SpeedRateSight = 3.5
             end
+            
+            -- Inner range (close range aim assist)
+            if shootComp.AutoAimingConfig.InnerRange then
+                shootComp.AutoAimingConfig.InnerRange.Speed = 6.0
+                shootComp.AutoAimingConfig.InnerRange.SpeedRate = 5.0
+                shootComp.AutoAimingConfig.InnerRange.RangeRate = 2.0
+                shootComp.AutoAimingConfig.InnerRange.RangeRateSight = 1.5
+                shootComp.AutoAimingConfig.InnerRange.SpeedRateSight = 4.0
+            end
+            
+            -- Global aimbot settings
+            shootComp.AutoAimingConfig.adsorbMaxRange = 150.0
+            shootComp.AutoAimingConfig.adsorbMinRange = 15.0
+            shootComp.AutoAimingConfig.adsorbMinAttenuationDis = 80.0
+            shootComp.AutoAimingConfig.adsorbMaxAttenuationDis = 300.0
+            shootComp.AutoAimingConfig.adsorbActiveMinRange = 10.0
+            shootComp.AutoAimingConfig.CrouchRate = 2.5
+            shootComp.AutoAimingConfig.ProneRate = 1.5
+            shootComp.AutoAimingConfig.DyingRate = 0.5
         end
-    end
-
-    if not crowded and HUD and currentPawn then
-        HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("HACKERS NEVER DIE", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
-    end
-end
-
-pcall(function()
-    if _G._ESPWatchdogHandle then pcall(function() Game:ClearTimer(_G._ESPWatchdogHandle) end); _G._ESPWatchdogHandle = nil end
-
-    local function StartESP(targetActor)
-        if not isValid(targetActor) then return end
-        cachedPawns = {}; lastPawnRefresh = 0
-        _G._ESPTimerChar = targetActor
-        _G._ESPTimerHandle = targetActor:AddGameTimer(0.15, true, function()
-            pcall(ESPTick)
-        end)
-    end
-
-    local function Watchdog()
+        
+        -- ===== AIM BONE SETTINGS (Aim at head) =====
         pcall(function()
-            local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-            local curPawn = pc and pc:GetCurPawn()
-            if isValid(curPawn) and _G._ESPTimerChar ~= curPawn then
-                if _G._ESPTimerHandle and isValid(_G._ESPTimerChar) then
-                    pcall(function() _G._ESPTimerChar:RemoveGameTimer(_G._ESPTimerHandle) end)
-                end
-                _G._ESPTimerHandle = nil
-                StartESP(curPawn)
-            elseif not _G._ESPTimerHandle then
-                StartESP(curPawn)
+            local aimComp = char.BP_AutoAimingComponent_C or 
+                           char.BP_AutoAimingComponent or 
+                           char.AutoAimingComponent
+            
+            if slua.isValid(aimComp) and aimComp.Bones then
+                -- Set aim target to head
+                pcall(function() 
+                    if aimComp.Bones.Set then
+                        aimComp.Bones:Set(0, "head")
+                        aimComp.Bones:Set(1, "head")
+                        aimComp.Bones:Set(2, "head")
+                    else
+                        aimComp.Bones[0] = "head"
+                        aimComp.Bones[1] = "head"
+                        aimComp.Bones[2] = "head"
+                    end
+                end)
             end
         end)
-    end
+        
+        -- ===== SPREAD REDUCTION =====
+        if shootComp.SpreadConfig then
+            shootComp.SpreadConfig.BaseSpread = 0.5
+            shootComp.SpreadConfig.ADSSpread = 0.3
+            shootComp.SpreadConfig.MoveSpread = 0.4
+            shootComp.SpreadConfig.JumpSpread = 0.6
+        end
+        
+        -- ===== AIM ASSIST STRENGTH =====
+        if shootComp.AimAssistConfig then
+            shootComp.AimAssistConfig.bEnableAimAssist = true
+            shootComp.AimAssistConfig.AimAssistStrength = 0.65
+            shootComp.AimAssistConfig.RotationLag = 0.35
+            shootComp.AimAssistConfig.MaxAimAssistAngle = 8.0
+        end
+        
+    end)
+end
 
-    _G._ESPWatchdogHandle = Game:SetTimer(1.0, true, Watchdog)
-    Watchdog()
+-- ===== TIMER TO APPLY CONTINUOUSLY =====
+local function StartAimbotTimer()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        if _G._AimbotTimerActive and _G._AimbotTimerPC == pc then 
+            return 
+        end
+        
+        _G._AimbotTimerPC = pc
+        _G._AimbotTimerActive = true
+        
+        pc:AddGameTimer(0.15, true, function()
+            pcall(ApplyAimbotAndNoRecoil)
+        end)
+    end)
+end
+
+-- ===== WEAPON SWITCH DETECTION =====
+local _LastWeaponID = nil
+
+local function CheckWeaponChangeAndReapply()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local char = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(char) then return end
+        
+        local weaponManager = char:GetWeaponManagerComponent()
+        if not slua.isValid(weaponManager) then return end
+        
+        local currentWeapon = weaponManager.CurrentWeaponReplicated
+        if slua.isValid(currentWeapon) then
+            local currentID = currentWeapon:GetWeaponID()
+            if currentID ~= _LastWeaponID then
+                _LastWeaponID = currentID
+                ApplyAimbotAndNoRecoil()
+            end
+        end
+    end)
+end
+
+-- ===== START AIMBOT =====
+pcall(function()
+    StartAimbotTimer()
+    
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if slua.isValid(pc) and pc.AddGameTimer then
+        pc:AddGameTimer(0.5, true, CheckWeaponChangeAndReapply)
+    end
 end)
 
--- ==================== AIMBOT + NO RECOIL ====================
+-- ==================== FPS + CAMERA TWEAKS ====================
 _G.Enable165FPSLogic = function()
   pcall(function()
     local graphics = require("client.slua.logic.setting.logic_setting_graphics")
@@ -1276,265 +1251,186 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
         gi:ExecuteCMD("grass.DensityScale", "0")
         gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
       end
-
-      pcall(function()
-        local allChars = Game:GetAllPlayerPawns() or {}
-        for _, c in pairs(allChars) do
-          if isValid(c) and c ~= char and c.TeamID ~= char.TeamID then
-            local mesh = c.Mesh
-            if isValid(mesh) then
-              local physAsset = mesh.PhysicsAssetOverride
-              if not isValid(physAsset) and isValid(mesh.SkeletalMesh) then
-                physAsset = mesh.SkeletalMesh.PhysicsAsset
-              end
-              if isValid(physAsset) and physAsset.SkeletalBodySetups then
-                _G._MBones = _G._MBones or {}
-                local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
-                if not _G._MBones[assetName] then
-                  local mb = {
-                    ["head"]=50, ["neck_01"]=40, ["pelvis"]=40,
-                    ["spine_01"]=40, ["spine_02"]=40, ["spine_03"]=40,
-                    ["upperarm_l"]=30, ["upperarm_r"]=30,
-                    ["lowerarm_l"]=25, ["lowerarm_r"]=25,
-                    ["hand_l"]=20, ["hand_r"]=20,
-                    ["thigh_l"]=30, ["thigh_r"]=30,
-                    ["calf_l"]=25, ["calf_r"]=25,
-                    ["foot_l"]=20, ["foot_r"]=20,
-                  }
-                  local setups = physAsset.SkeletalBodySetups
-                  for i = 1, 80 do
-                    local bs = nil
-                    pcall(function() bs = (type(setups.Get)=="function") and setups:Get(i-1) or setups[i] end)
-                    if not bs or not isValid(bs) then break end
-                    local bn = tostring(bs.BoneName):lower()
-                    local pct = nil
-                    for pat, val in pairs(mb) do
-                      if string.find(bn, pat) then pct = val; break end
-                    end
-                    if pct then
-                      local sc = 1.0 + pct/100.0
-                      local ag = bs.AggGeom
-                      pcall(function()
-                        local bx = (ag and ag.BoxElems) or bs.BoxElems
-                        if bx then
-                          local b = (type(bx.Get)=="function") and bx:Get(0) or bx[1]
-                          if b then
-                            b.X = (b.X or 30)*sc; b.Y = (b.Y or 30)*sc; b.Z = (b.Z or 60)*sc
-                            if type(bx.Set)=="function" then bx:Set(0,b) else bx[1]=b end
-                            if ag then bs.AggGeom=ag else bs.BoxElems=bx end
-                          end
-                        end
-                      end)
-                      pcall(function()
-                        local sp = (ag and ag.SphylElems) or bs.SphylElems
-                        if sp then
-                          local s = (type(sp.Get)=="function") and sp:Get(0) or sp[1]
-                          if s then
-                            if s.Radius then s.Radius=s.Radius*sc end
-                            if s.Length then s.Length=s.Length*sc end
-                            if type(sp.Set)=="function" then sp:Set(0,s) else sp[1]=s end
-                            if ag then bs.AggGeom=ag else bs.SphylElems=sp end
-                          end
-                        end
-                      end)
-                      pcall(function()
-                        local sr = (ag and ag.SphereElems) or bs.SphereElems
-                        if sr then
-                          local r = (type(sr.Get)=="function") and sr:Get(0) or sr[1]
-                          if r and r.Radius then
-                            r.Radius=r.Radius*sc
-                            if type(sr.Set)=="function" then sr:Set(0,r) else sr[1]=r end
-                            if ag then bs.AggGeom=ag else bs.SphereElems=sr end
-                          end
-                        end
-                      end)
-                    end
-                  end
-                  _G._MBones[assetName] = true
-                  if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
-                end
-              end
-            end
-          end
-        end
-      end)
     end)
   end)
 end
 
--- ==================== AIMBOT + NO RECOIL (MEDIUM/SAFE VALUES) ====================
+-- ============================================
+-- IsAIPawn BOT DETECTION + COUNTER
+-- ============================================
 
-local function ApplyAimbotAndNoRecoil()
-    pcall(function()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        local char = pc:GetPlayerCharacterSafety()
-        if not slua.isValid(char) then return end
-        
-        local weaponManager = char:GetWeaponManagerComponent()
-        if not slua.isValid(weaponManager) then return end
-        
-        local currentWeapon = weaponManager.CurrentWeaponReplicated
-        if not slua.isValid(currentWeapon) then return end
-        
-        local shootComp = currentWeapon.ShootWeaponEntityComp
-        if not slua.isValid(shootComp) then return end
-        
-        -- ===== NO RECOIL (Medium/Safe Values) =====
-        shootComp.RecoilKick = 0.15
-        shootComp.RecoilKickADS = 0.12
-        shootComp.AnimationKick = 0.10
-        shootComp.AccessoriesVRecoilFactor = 0.45
-        shootComp.AccessoriesHRecoilFactor = 0.45
-        shootComp.AccessoriesRecoveryFactor = 0.50
-        shootComp.GameDeviationFactor = 0.35
-        shootComp.GameDeviationAccuracy = 0.30
-        
-        -- Weapon switch speed
-        shootComp.SwitchFromBackpackToIdleTime = 0.25
-        shootComp.SwitchFromIdleToBackpackTime = 0.25
-        
-        -- ===== RECOIL INFO (Medium Values) =====
-        if shootComp.RecoilInfo then
-            shootComp.RecoilInfo.VerticalRecoilMin = 0.15
-            shootComp.RecoilInfo.VerticalRecoilMax = 0.25
-            shootComp.RecoilInfo.RecoilSpeedVertical = 0.30
-            shootComp.RecoilInfo.RecoilSpeedHorizontal = 0.20
-            shootComp.RecoilInfo.VerticalRecoveryMax = 0.35
-            shootComp.RecoilInfo.RecoilModifierStand = 0.40
-            shootComp.RecoilInfo.RecoilModifierCrouch = 0.30
-            shootComp.RecoilInfo.RecoilModifierProne = 0.20
-        end
-        
-        -- ===== AIMBOT CONFIG (Medium/Subtle Values) =====
-        if shootComp.AutoAimingConfig then
-            -- Outer range (long range aim assist)
-            if shootComp.AutoAimingConfig.OuterRange then
-                shootComp.AutoAimingConfig.OuterRange.Speed = 5.0
-                shootComp.AutoAimingConfig.OuterRange.SpeedRate = 4.0
-                shootComp.AutoAimingConfig.OuterRange.RangeRate = 1.5
-                shootComp.AutoAimingConfig.OuterRange.RangeRateSight = 1.2
-                shootComp.AutoAimingConfig.OuterRange.SpeedRateSight = 3.5
-            end
-            
-            -- Inner range (close range aim assist)
-            if shootComp.AutoAimingConfig.InnerRange then
-                shootComp.AutoAimingConfig.InnerRange.Speed = 6.0
-                shootComp.AutoAimingConfig.InnerRange.SpeedRate = 5.0
-                shootComp.AutoAimingConfig.InnerRange.RangeRate = 2.0
-                shootComp.AutoAimingConfig.InnerRange.RangeRateSight = 1.5
-                shootComp.AutoAimingConfig.InnerRange.SpeedRateSight = 4.0
-            end
-            
-            -- Global aimbot settings
-            shootComp.AutoAimingConfig.adsorbMaxRange = 150.0
-            shootComp.AutoAimingConfig.adsorbMinRange = 15.0
-            shootComp.AutoAimingConfig.adsorbMinAttenuationDis = 80.0
-            shootComp.AutoAimingConfig.adsorbMaxAttenuationDis = 300.0
-            shootComp.AutoAimingConfig.adsorbActiveMinRange = 10.0
-            shootComp.AutoAimingConfig.CrouchRate = 2.5
-            shootComp.AutoAimingConfig.ProneRate = 1.5
-            shootComp.AutoAimingConfig.DyingRate = 0.5
-        end
-        
-        -- ===== AIM BONE SETTINGS (Aim at head) =====
-        pcall(function()
-            local aimComp = char.BP_AutoAimingComponent_C or 
-                           char.BP_AutoAimingComponent or 
-                           char.AutoAimingComponent
-            
-            if slua.isValid(aimComp) and aimComp.Bones then
-                -- Set aim target to head
-                pcall(function() 
-                    if aimComp.Bones.Set then
-                        aimComp.Bones:Set(0, "head")
-                        aimComp.Bones:Set(1, "head")
-                        aimComp.Bones:Set(2, "head")
-                    else
-                        aimComp.Bones[0] = "head"
-                        aimComp.Bones[1] = "head"
-                        aimComp.Bones[2] = "head"
-                    end
-                end)
-            end
-        end)
-        
-        -- ===== SPREAD REDUCTION =====
-        if shootComp.SpreadConfig then
-            shootComp.SpreadConfig.BaseSpread = 0.5
-            shootComp.SpreadConfig.ADSSpread = 0.3
-            shootComp.SpreadConfig.MoveSpread = 0.4
-            shootComp.SpreadConfig.JumpSpread = 0.6
-        end
-        
-        -- ===== AIM ASSIST STRENGTH =====
-        if shootComp.AimAssistConfig then
-            shootComp.AimAssistConfig.bEnableAimAssist = true
-            shootComp.AimAssistConfig.AimAssistStrength = 0.65
-            shootComp.AimAssistConfig.RotationLag = 0.35
-            shootComp.AimAssistConfig.MaxAimAssistAngle = 8.0
-        end
-        
-    end)
-end
-
--- ===== TIMER TO APPLY CONTINUOUSLY =====
-local function StartAimbotTimer()
-    pcall(function()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        -- Store timer reference to avoid duplicate timers
-        if _G._AimbotTimerActive and _G._AimbotTimerPC == pc then 
-            return 
-        end
-        
-        _G._AimbotTimerPC = pc
-        _G._AimbotTimerActive = true
-        
-        pc:AddGameTimer(0.15, true, function()
-            pcall(ApplyAimbotAndNoRecoil)
-        end)
-    end)
-end
-
--- ===== WEAPON SWITCH DETECTION (Re-apply on weapon change) =====
-local _LastWeaponID = nil
-
-local function CheckWeaponChangeAndReapply()
-    pcall(function()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        local char = pc:GetPlayerCharacterSafety()
-        if not slua.isValid(char) then return end
-        
-        local weaponManager = char:GetWeaponManagerComponent()
-        if not slua.isValid(weaponManager) then return end
-        
-        local currentWeapon = weaponManager.CurrentWeaponReplicated
-        if slua.isValid(currentWeapon) then
-            local currentID = currentWeapon:GetWeaponID()
-            if currentID ~= _LastWeaponID then
-                _LastWeaponID = currentID
-                ApplyAimbotAndNoRecoil() -- Re-apply on weapon switch
-            end
-        end
-    end)
-end
-
--- ===== START ALL =====
-pcall(function()
-    -- Start main aimbot timer
-    StartAimbotTimer()
+local function IsAIPawn(pawn)
+    if not slua.isValid(pawn) then return false end
     
-    -- Start weapon change detector
-    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if slua.isValid(pc) and pc.AddGameTimer then
-        pc:AddGameTimer(0.5, true, CheckWeaponChangeAndReapply)
+    -- Primary check: IsAIPawn function
+    if pawn.IsAIPawn and type(pawn.IsAIPawn) == "function" then
+        return pawn:IsAIPawn()
     end
-end)
+    
+    -- Secondary: Game:IsAI
+    if Game.IsAI and type(Game.IsAI) == "function" then
+        return Game:IsAI(pawn)
+    end
+    
+    -- Tertiary: Check Controller
+    if pawn.GetController then
+        local controller = pawn:GetController()
+        if slua.isValid(controller) then
+            local cName = tostring(controller:GetName() or "")
+            if cName:find("AI") or cName:find("Bot") then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+local function IsPawnAliveBot(pawn)
+    if not slua.isValid(pawn) then return false end
+    if pawn.HealthStatus then
+        local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
+        return SecurityCommonUtils.IsHealthStatusAlive(pawn.HealthStatus)
+    end
+    return (pawn.Health or 0) > 0
+end
+
+local function GetBotAndRealCount()
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not slua.isValid(pc) then return 0, 0 end
+    
+    local localPlayer = pc:GetPlayerCharacterSafety()
+    if not slua.isValid(localPlayer) then return 0, 0 end
+    
+    local allChars = Game:GetAllPlayerPawns() or {}
+    local myTeamId = localPlayer.TeamID or 0
+    
+    local botCount = 0
+    local realCount = 0
+    
+    for _, enemy in pairs(allChars) do
+        if slua.isValid(enemy) and enemy ~= localPlayer then
+            local enemyTeamId = enemy.TeamID or 0
+            
+            -- Only enemies (different team)
+            if enemyTeamId ~= myTeamId and IsPawnAliveBot(enemy) then
+                if IsAIPawn(enemy) then
+                    botCount = botCount + 1
+                else
+                    realCount = realCount + 1
+                end
+            end
+        end
+    end
+    
+    return botCount, realCount
+end
+
+local function DrawCounter()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local localPlayer = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(localPlayer) then return end
+        
+        local hud = pc:GetHUD()
+        if not slua.isValid(hud) then return end
+        
+        local botCount, realCount = GetBotAndRealCount()
+        
+        -- Display on screen
+        hud:AddDebugText(string.format("🤖 BOT: %d", botCount), localPlayer, 1,
+            {X=0, Y=0, Z=220}, {X=0, Y=0, Z=220},
+            {R=0, G=255, B=255, A=255}, true, false, true, nil, 1.0, true)
+        
+        hud:AddDebugText(string.format("👤 REAL: %d", realCount), localPlayer, 1,
+            {X=0, Y=0, Z=205}, {X=0, Y=0, Z=205},
+            {R=255, G=255, B=0, A=255}, true, false, true, nil, 1.0, true)
+        
+        hud:AddDebugText(string.format("🎯 TOTAL: %d", botCount + realCount), localPlayer, 1,
+            {X=0, Y=0, Z=190}, {X=0, Y=0, Z=190},
+            {R=255, G=255, B=255, A=255}, true, false, true, nil, 0.9, true)
+        
+        -- Label each enemy with BOT/REAL tag
+        local allChars = Game:GetAllPlayerPawns() or {}
+        local myTeamId = localPlayer.TeamID or 0
+        local myPos = localPlayer:K2_GetActorLocation()
+        
+        for _, enemy in pairs(allChars) do
+            if slua.isValid(enemy) and enemy ~= localPlayer then
+                local enemyTeamId = enemy.TeamID or 0
+                if enemyTeamId ~= myTeamId and IsPawnAliveBot(enemy) then
+                    local enemyPos = enemy:K2_GetActorLocation()
+                    local dx = enemyPos.X - myPos.X
+                    local dy = enemyPos.Y - myPos.Y
+                    local dz = enemyPos.Z - myPos.Z
+                    local dist = math.sqrt(dx*dx + dy*dy + dz*dz) / 100
+                    
+                    if dist <= 150 then
+                        local isBot = IsAIPawn(enemy)
+                        local label = isBot and "🤖 BOT" or "👤 REAL"
+                        local color = isBot and {R=0, G=255, B=255, A=255} or {R=255, G=255, B=0, A=255}
+                        
+                        hud:AddDebugText(label, enemy, 0.8,
+                            {X=0, Y=0, Z=100}, {X=0, Y=0, Z=100},
+                            color, true, false, true, nil, 0.7, true)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function StartCounter()
+    local pc = slua_GameFrontendHUD:GetPlayerController()
+    if slua.isValid(pc) and pc.AddGameTimer then
+        pc:AddGameTimer(0.3, true, DrawCounter)
+        print("[IsAIPawn Counter] Activated - BOT vs REAL")
+    else
+        local fb = slua_GameFrontendHUD or Game
+        if fb and slua.isValid(fb) then
+            fb:AddGameTimer(1.0, false, StartCounter)
+        end
+    end
+end
+
+-- ============================================
+-- MAIN CLASS
+-- ============================================
+
+function BRPlayerCharacterBase:ctor()
+end
+
+function BRPlayerCharacterBase:_PostConstruct()
+    if BRPlayerCharacterBase.__super then
+        BRPlayerCharacterBase.__super._PostConstruct(self)
+    end
+    self:InitAddSpecialMoveInfo()
+    self.bCanNearDeathGiveup = true
+    StartCounter()
+    print("[BOT COUNTER] Activated - Using IsAIPawn")
+end
+
+function BRPlayerCharacterBase:ReceiveBeginPlay()
+    if BRPlayerCharacterBase.__super then
+        BRPlayerCharacterBase.__super.ReceiveBeginPlay(self)
+    end
+    if Client then
+        local GameplayData = require("GameLua.GameCore.Data.GameplayData")
+        GameplayData.AddCharacter(self.Object)
+    end
+end
+
+function BRPlayerCharacterBase:ReceiveEndPlay(EndPlayReason)
+    if BRPlayerCharacterBase.__super then
+        BRPlayerCharacterBase.__super.ReceiveEndPlay(self, EndPlayReason)
+    end
+    if Client then
+        local GameplayData = require("GameLua.GameCore.Data.GameplayData")
+        GameplayData.RemoveCharacter(self.Object)
+    end
+end
 
 print("[MERGED BYPASS] Complete - All Security Systems Disabled")
 print("  ✓ SLUA + MD5 + PAK Signature")
@@ -1544,3 +1440,4 @@ print("  ✓ ShootVerify + BulletHitInfo")
 print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
+print("  ✓ Bot Counter Active - BOT vs REAL")
