@@ -30,6 +30,18 @@ if _G.Mod_FPS165_Enabled == nil then _G.Mod_FPS165_Enabled = true end
 if _G.Mod_NoGrass_Enabled == nil then _G.Mod_NoGrass_Enabled = true end
 if _G.Mod_iPadView_Enabled == nil then _G.Mod_iPadView_Enabled = true end
 
+-- Slider values for fine-tuning
+if _G.Mod_AimbotStrength == nil then _G.Mod_AimbotStrength = 50 end -- 0-100 slider
+if _G.Mod_iPadViewDistance == nil then _G.Mod_iPadViewDistance = 90 end -- 80-140 slider
+
+-- CHAMS color system (both colors can be on simultaneously)
+if _G.Mod_Chams_GreenEnabled == nil then _G.Mod_Chams_GreenEnabled = false end
+if _G.Mod_Chams_YellowEnabled == nil then _G.Mod_Chams_YellowEnabled = false end
+
+-- RGB values for CHAMS colors (real-time adjustable)
+if _G.Mod_Chams_GreenRGB == nil then _G.Mod_Chams_GreenRGB = {R=0, G=255, B=0, A=255} end
+if _G.Mod_Chams_YellowRGB == nil then _G.Mod_Chams_YellowRGB = {R=255, G=255, B=0, A=255} end
+
 local require = require
 local import  = import
 local isValid = slua.isValid
@@ -2408,9 +2420,19 @@ local function ESPTick()
                         local targetPos = headPos or tPawn:K2_GetActorLocation()
                         pcall(function()
                             if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                nameColor = {R=0,G=255,B=0,A=255}
+                                -- Visible: Use GREEN color if enabled
+                                if _G.Mod_Chams_GreenEnabled then
+                                    nameColor = _G.Mod_Chams_GreenRGB or {R=0,G=255,B=0,A=255}
+                                else
+                                    nameColor = {R=0,G=255,B=0,A=255}
+                                end
                             else
-                                nameColor = {R=255,G=255,B=0,A=255}
+                                -- Hidden: Use YELLOW color if enabled
+                                if _G.Mod_Chams_YellowEnabled then
+                                    nameColor = _G.Mod_Chams_YellowRGB or {R=255,G=255,B=0,A=255}
+                                else
+                                    nameColor = {R=255,G=255,B=0,A=255}
+                                end
                             end
                         end)
 
@@ -2569,7 +2591,8 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
       if SubsystemMgr then
         local SettingSubsystem = SubsystemMgr:Get("SettingSubsystem")
         if SettingSubsystem then
-          local rawSliderValue = SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90
+          -- Use mod slider value if enabled, otherwise use game's setting
+          local rawSliderValue = _G.Mod_iPadViewDistance or (SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90)
           local targetTPP = rawSliderValue
           if rawSliderValue > 80 and rawSliderValue <= 90 then
               targetTPP = 80 + (rawSliderValue - 80) * 6.0
@@ -2705,44 +2728,47 @@ local function ApplyHardAimbot()
         local entity = weapon.ShootWeaponEntityComp
         if not isValid(entity) then return end
 
-        entity.GameDeviationFactor = 0.5
+        -- Use slider value to adjust aimbot strength (0-100)
+        local strengthMul = (_G.Mod_AimbotStrength or 50) / 100
+        
+        entity.GameDeviationFactor = 0.5 * (1 - strengthMul * 0.7)
         entity.WeaponAimInTime = 20
         entity.SwitchFromIdleToBackpackTime = 0.15
         entity.SwitchFromBackpackToIdleTime = 0.15
         entity.ShotGunHorizontalSpread = 0.0
         entity.ShotGunVerticalSpread = 0.0
-        entity.RecoilKick = 0.2
-        entity.RecoilKickADS = 0.2
-        entity.AnimationKick = 0.2
-        entity.AccessoriesVRecoilFactor = 0.6
-        entity.AccessoriesHRecoilFactor = 0.6
-        entity.GameDeviationFactor = 0.3
+        entity.RecoilKick = 0.2 * (1 - strengthMul * 0.6)
+        entity.RecoilKickADS = 0.2 * (1 - strengthMul * 0.6)
+        entity.AnimationKick = 0.2 * (1 - strengthMul * 0.6)
+        entity.AccessoriesVRecoilFactor = 0.6 * (1 - strengthMul * 0.4)
+        entity.AccessoriesHRecoilFactor = 0.6 * (1 - strengthMul * 0.4)
+        entity.GameDeviationFactor = 0.3 * (1 - strengthMul * 0.7)
         if entity.RecoilInfo then
-            entity.RecoilInfo.VerticalRecoilMin = 0.2
-            entity.RecoilInfo.VerticalRecoilMax = 0.2
-            entity.RecoilInfo.RecoilSpeedVertical = 0.2
-            entity.RecoilInfo.RecoilSpeedHorizontal = 0.15
-            entity.RecoilInfo.VerticalRecoveryMax = 0.2
+            entity.RecoilInfo.VerticalRecoilMin = 0.2 * (1 - strengthMul * 0.5)
+            entity.RecoilInfo.VerticalRecoilMax = 0.2 * (1 - strengthMul * 0.5)
+            entity.RecoilInfo.RecoilSpeedVertical = 0.2 * (1 - strengthMul * 0.5)
+            entity.RecoilInfo.RecoilSpeedHorizontal = 0.15 * (1 - strengthMul * 0.5)
+            entity.RecoilInfo.VerticalRecoveryMax = 0.2 * (1 - strengthMul * 0.5)
         end
-        entity.RecoilModifierStand = 0.2
-        entity.RecoilModifierCrouch = 0.2
-        entity.RecoilModifierProne = 0.2
+        entity.RecoilModifierStand = 0.2 * (1 - strengthMul * 0.5)
+        entity.RecoilModifierCrouch = 0.2 * (1 - strengthMul * 0.5)
+        entity.RecoilModifierProne = 0.2 * (1 - strengthMul * 0.5)
         if entity.AutoAimingConfig then
             for _, range in ipairs({"OuterRange", "InnerRange"}) do
                 local cfg = entity.AutoAimingConfig[range]
                 if cfg then
-                    cfg.Speed = 8
-                    cfg.RangeRate = 2
-                    cfg.SpeedRate = 5
-                    cfg.RangeRateSight = 2
-                    cfg.SpeedRateSight = 4
-                    cfg.CrouchRate = 4
-                    cfg.ProneRate = 4
+                    cfg.Speed = 8 * strengthMul
+                    cfg.RangeRate = 2 * strengthMul
+                    cfg.SpeedRate = 5 * strengthMul
+                    cfg.RangeRateSight = 2 * strengthMul
+                    cfg.SpeedRateSight = 4 * strengthMul
+                    cfg.CrouchRate = 4 * strengthMul
+                    cfg.ProneRate = 4 * strengthMul
                     cfg.DyingRate = 0
 
-                    cfg.adsorbMaxRange = 200
+                    cfg.adsorbMaxRange = 200 * strengthMul
                     cfg.adsorbMinRange = 20
-                    cfg.adsorbMinAttenuationDis = 100
+                    cfg.adsorbMinAttenuationDis = 100 * (1 - strengthMul * 0.5)
                     cfg.adsorbMaxAttenuationDis = 8000
                     cfg.adsorbActiveMinRange = 20
                 end
@@ -2909,6 +2935,21 @@ pcall(function()
                     end
                 },
                 {
+                    Key = "ModMenu_AimbotStrength",
+                    UI = AliasMap.Slider,
+                    Text = "   Aimbot Strength: " .. math.floor((_G.Mod_AimbotStrength or 50)),
+                    GetFunc = function() 
+                        return (_G.Mod_AimbotStrength or 50) / 100
+                    end,
+                    SetFunc = function(_, value)
+                        _G.Mod_AimbotStrength = math.floor(value * 100)
+                        if _G.EventSystem and _G.EVENTTYPE_SETTING and _G.EVENTID_SETTING_OPTION_FORCEUPDATE then
+                            _G.EventSystem:postEvent(_G.EVENTTYPE_SETTING, _G.EVENTID_SETTING_OPTION_FORCEUPDATE, "ModMenu_AimbotStrength")
+                        end
+                        return true
+                    end
+                },
+                {
                     Key = "ESP",
                     UI = AliasMap.Switcher,
                     Text = "WALL ESP",
@@ -2971,7 +3012,7 @@ pcall(function()
                 {
                     Key = "iPadView",
                     UI = AliasMap.Switcher,
-                    Text = "IPAD VIEW (140)",
+                    Text = "IPAD VIEW",
                     GetFunc = function() return _G.Mod_iPadView_Enabled ~= false end,
                     SetFunc = function(_, value)
                         _G.Mod_iPadView_Enabled = value
@@ -2980,41 +3021,106 @@ pcall(function()
                     end
                 },
                 {
-                    Key = "Title_ESP_Colors",
-                    UI = AliasMap.TitleSwitcher,
-                    Text = "CHAMS COLORS",
-                    ExpandIndex = 0,
-                    GetFunc = function() return _G.Mod_ESP_Color_Expand or false end, 
-                    SetFunc = function(_, value) 
-                        _G.Mod_ESP_Color_Expand = value
-                        return true 
-                    end
-                }
-            }
-            
-            local colorNames = {"GREEN (OPEN)", "YELLOW (COVER)"}
-            for i, colorName in ipairs(colorNames) do
-                table.insert(ModMenuStack, {
-                    Key = "ModMenu_Color_" .. i,
-                    UI = AliasMap.Switcher,
-                    Text = "   " .. colorName,
-                    ExpandHandle = "Title_ESP_Colors",
-                    GetFunc = function()
-                        return (_G.Mod_ESP_Color_Index or 1) == i
+                    Key = "ModMenu_iPadViewDistance",
+                    UI = AliasMap.Slider,
+                    Text = "   View Distance: " .. math.floor((_G.Mod_iPadViewDistance or 90)),
+                    GetFunc = function() 
+                        return ((_G.Mod_iPadViewDistance or 90) - 80) / 60
                     end,
                     SetFunc = function(_, value)
-                        if value then
-                            _G.Mod_ESP_Color_Index = i
-                            if _G.EventSystem and _G.EVENTTYPE_SETTING and _G.EVENTID_SETTING_OPTION_FORCEUPDATE then
-                                for j = 1, #colorNames do
-                                    _G.EventSystem:postEvent(_G.EVENTTYPE_SETTING, _G.EVENTID_SETTING_OPTION_FORCEUPDATE, "ModMenu_Color_" .. j)
-                                end
-                            end
+                        _G.Mod_iPadViewDistance = math.floor(80 + (value * 60))
+                        if _G.EventSystem and _G.EVENTTYPE_SETTING and _G.EVENTID_SETTING_OPTION_FORCEUPDATE then
+                            _G.EventSystem:postEvent(_G.EVENTTYPE_SETTING, _G.EVENTID_SETTING_OPTION_FORCEUPDATE, "ModMenu_iPadViewDistance")
                         end
                         return true
                     end
-                })
-            end
+                },
+                {
+                    Key = "Title_ESP_Colors",
+                    UI = AliasMap.Title,
+                    Text = "CHAMS COLORS"
+                },
+                {
+                    Key = "ModMenu_GreenColor",
+                    UI = AliasMap.Switcher,
+                    Text = "   GREEN (VISIBLE)",
+                    GetFunc = function() return _G.Mod_Chams_GreenEnabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_GreenEnabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_GreenR",
+                    UI = AliasMap.Slider,
+                    Text = "      Green-R: " .. math.floor((_G.Mod_Chams_GreenRGB.R or 0)),
+                    GetFunc = function() return (_G.Mod_Chams_GreenRGB.R or 0) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_GreenRGB.R = math.floor(value * 255)
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_GreenG",
+                    UI = AliasMap.Slider,
+                    Text = "      Green-G: " .. math.floor((_G.Mod_Chams_GreenRGB.G or 255)),
+                    GetFunc = function() return (_G.Mod_Chams_GreenRGB.G or 255) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_GreenRGB.G = math.floor(value * 255)
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_GreenB",
+                    UI = AliasMap.Slider,
+                    Text = "      Green-B: " .. math.floor((_G.Mod_Chams_GreenRGB.B or 0)),
+                    GetFunc = function() return (_G.Mod_Chams_GreenRGB.B or 0) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_GreenRGB.B = math.floor(value * 255)
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_YellowColor",
+                    UI = AliasMap.Switcher,
+                    Text = "   YELLOW (HIDDEN)",
+                    GetFunc = function() return _G.Mod_Chams_YellowEnabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_YellowEnabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_YellowR",
+                    UI = AliasMap.Slider,
+                    Text = "      Yellow-R: " .. math.floor((_G.Mod_Chams_YellowRGB.R or 255)),
+                    GetFunc = function() return (_G.Mod_Chams_YellowRGB.R or 255) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_YellowRGB.R = math.floor(value * 255)
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_YellowG",
+                    UI = AliasMap.Slider,
+                    Text = "      Yellow-G: " .. math.floor((_G.Mod_Chams_YellowRGB.G or 255)),
+                    GetFunc = function() return (_G.Mod_Chams_YellowRGB.G or 255) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_YellowRGB.G = math.floor(value * 255)
+                        return true
+                    end
+                },
+                {
+                    Key = "ModMenu_YellowB",
+                    UI = AliasMap.Slider,
+                    Text = "      Yellow-B: " .. math.floor((_G.Mod_Chams_YellowRGB.B or 0)),
+                    GetFunc = function() return (_G.Mod_Chams_YellowRGB.B or 0) / 255 end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Chams_YellowRGB.B = math.floor(value * 255)
+                        return true
+                    end
+                }
+            }
             
             SettingPageDefine.ModMenu = {
                 Key = "ModMenu",
