@@ -970,7 +970,7 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== ESP (NO HEAD DOT) ==================== 
+-- ==================== ESP (ONLY HP BAR, NO NAMES, NO HEAD DOT, NO COUNTER) ==================== 
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
 local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 
@@ -1028,17 +1028,6 @@ local function ESPTick()
         cachedPawns = Game:GetAllPlayerPawns() or {}
     end
 
-    local botCount = 0
-    local playerCount = 0
-
-    local totalAlive = 0
-    for _, p in pairs(cachedPawns) do
-        if isValid(p) and p ~= currentPawn and p.TeamID ~= myTeamId and IsPawnAlive(p) then
-            totalAlive = totalAlive + 1
-        end
-    end
-    local crowded = totalAlive > 20
-
     for _, tPawn in pairs(cachedPawns) do
         if isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
             if IsPawnAlive(tPawn) then
@@ -1048,12 +1037,7 @@ local function ESPTick()
                 local dz = enemyPos.Z - myPos.Z
                 local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
 
-                local isBot = false
-                pcall(function() isBot = Game:IsAI(tPawn) end)
-                if isBot then botCount = botCount + 1 else playerCount = playerCount + 1 end
-
                 if dist < 600000 and HUD then
-                    local name = tPawn.PlayerName or "UNKNOWN"
                     local distM = dist / 100
 
                     local hp = tPawn.Health
@@ -1068,15 +1052,6 @@ local function ESPTick()
                         hpPercent = hp / maxHp
                     end
 
-                    -- Check visibility for color determination
-                    local isVisible = false
-                    local targetPos = tPawn:K2_GetActorLocation()
-                    pcall(function()
-                        if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                            isVisible = true
-                        end
-                    end)
-
                     -- HP Color
                     local hpColor = {R=0,G=255,B=0,A=255}
                     if hpPercent < 0.3 then
@@ -1088,9 +1063,6 @@ local function ESPTick()
                         hpColor = {R=255,G=0,B=0,A=255}
                     end
 
-                    -- Name Color: GREEN when visible, YELLOW when behind walls
-                    local nameColor = isVisible and {R=0,G=255,B=0,A=255} or {R=255,G=255,B=0,A=255}
-
                     local bones = {}
                     local mesh = tPawn.Mesh
                     if isValid(mesh) then
@@ -1098,35 +1070,18 @@ local function ESPTick()
                             bones[bn] = mesh:GetSocketLocation(bn)
                         end
                     end
-                    local origin = enemyPos
-                    local oz = origin.Z
                     local headPos = bones["head"]
-                    local footPos = bones["foot_l"]
-                    local footRPos = bones["foot_r"]
-
-                    local headZ = headPos and (headPos.Z - oz) or 90
+                    local headZ = headPos and (headPos.Z - enemyPos.Z) or 90
                     local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
-                    local nameOffset = -80 - math.min(distM, 60) * 0.33 - math.max(0, distM - 60) * 0.1
 
-                    if crowded then
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-                    else
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
+                    -- ONLY HP BAR - No names, no head dot, no counter
+                    local hpText = isKnock and "DOWN" or HPBar(hpPercent)
+                    HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
 
-                        HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
-
-                    end
                     pcall(ApplyWallHack, currentPawn, tPawn, uCon)
                 end
             end
         end
-    end
-
-    if not crowded and HUD and currentPawn then
-        HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("HACKERS NEVER DIE", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
     end
 end
 
@@ -1560,4 +1515,4 @@ print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
 print("  ✓ Chams: GREEN Visible / YELLOW Behind Walls")
-print("  ✓ Head Dot REMOVED")
+print("  ✓ ESP Names REMOVED | Bot/Player Counter REMOVED")
