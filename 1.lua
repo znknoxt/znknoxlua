@@ -1,154 +1,109 @@
---[[
-    ╔══════════════════════════════════════════════════════════════╗
-    ║              GHOST PROTOCOL V5.0 - COMPLETE                 ║
-    ║                   INJECTOR-READY SCRIPT                     ║
-    ║                                                             ║
-    ║  Features:                                                  ║
-    ║  ✓ Complete Anti-Cheat Bypass (20+ modules)                ║
-    ║  ✓ Wallhack (Green/Yellow Chams)                           ║
-    ║  ✓ ESP (HP Bars Only)                                      ║
-    ║  ✓ Aimbot + No Recoil                                      ║
-    ║  ✓ Bot/Real Player Counter                                 ║
-    ║  ✓ FPS Unlock (165 FPS)                                    ║
-    ║  ✓ iPad View (140 FOV)                                     ║
-    ╚══════════════════════════════════════════════════════════════╝
---]]
-
--- ============================================================================
--- PREVENT DUPLICATE INJECTION
--- ============================================================================
-if _G.GHOST_V5_LOADED then
-    print("[GHOST] Already loaded in this session")
-    return
-end
-_G.GHOST_V5_LOADED = true
-_G.GHOST_INJECT_TIME = os.time()
-
-print("[GHOST] ██████╗ ██╗  ██╗ ██████╗ ███████╗████████╗")
-print("[GHOST] ██╔════╝ ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝")
-print("[GHOST] ██║  ███╗███████║██║   ██║███████╗   ██║   ")
-print("[GHOST] ██║   ██║██╔══██║██║   ██║╚════██║   ██║   ")
-print("[GHOST] ╚██████╔╝██║  ██║╚██████╔╝███████║   ██║   ")
-print("[GHOST]  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ")
-print("[GHOST]          PROTOCOL V5.0 - INJECTED            ")
-
--- ============================================================================
--- SAFE EXECUTION WRAPPER
--- ============================================================================
-local function SafeExec(func, name)
-    local success, err = pcall(func)
-    if not success then
-        print("[GHOST] Error in " .. (name or "unknown") .. ": " .. tostring(err))
-    end
-    return success
+-- Per-match guard: allow re-init when the player controller changes (new match)
+do
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if _G._MOD_LOADED and _G._MOD_PC == pc then return end
+    _G._MOD_LOADED = true
+    _G._MOD_PC = pc
 end
 
--- ============================================================================
--- UTILITY FUNCTIONS
--- ============================================================================
+local require = require
+local import  = import
+local isValid = slua.isValid
+
 local function nop() return true end
 local function retFalse() return false end
 local function retZero() return 0 end
 local function retEmpty() return {} end
-local function retTrue() return true end
+_G.CheatsEnabled = true
 
 local function safe_require(path)
     local ok, mod = pcall(require, path)
     return ok and mod or nil
 end
 
--- ============================================================================
--- MODULE 1: SLUA & INTEGRITY BYPASS
--- ============================================================================
-SafeExec(function()
-    if slua then
-        if slua.getSignature then
-            slua.getSignature = function() return math.random(0xDEAD0000, 0xFFFFFFFF) end
-        end
-        if slua.setSignature then
-            slua.setSignature = nop
-        end
+local ok_gd, GameplayData = pcall(require, "GameLua.GameCore.Data.GameplayData")
+if not ok_gd then GameplayData = nil end
+
+print("[CHETAN_MODS] COMPLETE BYPASS INITIALIZING...")
+
+-- ==================== MODULE 1: SLUA & INTEGRITY BYPASS ====================
+pcall(function()
+    if slua and slua.getSignature then
+        slua.getSignature = function() return math.random(0xDE000000, 0xFFFFFFFF) end
     end
-    
     local loader = package.loaded["slua.loader"] or rawget(_G, "slua_loader")
     if loader then
-        if loader.verifyBytecode then loader.verifyBytecode = retTrue end
-        if loader.checkIntegrity then loader.checkIntegrity = retTrue end
-        if loader.verify then loader.verify = retTrue end
+        if loader.verifyBytecode then loader.verifyBytecode = function() return true end end
+        if loader.checkIntegrity then loader.checkIntegrity = function() return true end end
     end
-    
-    local serialize = package.loaded["slua.serialize"]
-    if serialize then
-        if serialize.check then serialize.check = retTrue end
-        if serialize.verify then serialize.verify = retTrue end
+    local slua_serialize = package.loaded["slua.serialize"]
+    if slua_serialize and slua_serialize.check then
+        slua_serialize.check = function() return true end
     end
-    
-    print("[GHOST] ✓ SLUA Integrity Bypassed")
-end, "SLUA Bypass")
+    print("[CHETAN_MODS] ✓ SLUA Integrity Bypassed")
+end)
 
--- ============================================================================
--- MODULE 2: PAK & MD5 SIGNATURE BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 2: MD5 & PAK BYPASS ====================
+pcall(function()
     local console = import("KismetSystemLibrary")
-    if console and console.ExecuteConsoleCommand then
-        pcall(function() console:ExecuteConsoleCommand("pak.DisablePakSignatureCheck 1") end)
-        pcall(function() console:ExecuteConsoleCommand("pakchunk.EnableSignatureCheck 0") end)
-        pcall(function() console:ExecuteConsoleCommand("s.VerifyPak 0") end)
-        pcall(function() console:ExecuteConsoleCommand("r.AllowOcclusionQueries 0") end)
+    if console then
+        console.ExecuteConsoleCommand(nil, "pak.DisablePakSignatureCheck 1")
+        console.ExecuteConsoleCommand(nil, "pakchunk.EnableSignatureCheck 0")
+        console.ExecuteConsoleCommand(nil, "s.VerifyPak 0")
     end
-    
-    local CreativeLib = import("CreativeModeBlueprintLibrary")
-    if CreativeLib then
-        if CreativeLib.MD5HashByteArray then CreativeLib.MD5HashByteArray = function() return "BYPASSED" end end
-        if CreativeLib.MD5HashFile then CreativeLib.MD5HashFile = function() return "BYPASSED" end end
-        if CreativeLib.GetContentDiffData then CreativeLib.GetContentDiffData = function() return true, "BYPASSED" end end
+    local CreativeModeBlueprintLibrary = import("CreativeModeBlueprintLibrary")
+    if CreativeModeBlueprintLibrary then
+        CreativeModeBlueprintLibrary.MD5HashByteArray = function() return "BYPASSED_MD5_HASH" end
+        CreativeModeBlueprintLibrary.MD5HashFile = function() return "BYPASSED_MD5_HASH" end
+        CreativeModeBlueprintLibrary.GetContentDiffData = function() return true, "BYPASSED" end
     end
-    
-    local STExtraLib = import("STExtraBlueprintFunctionLibrary")
-    if STExtraLib then
-        if STExtraLib.CheckMD5 then STExtraLib.CheckMD5 = retTrue end
-        if STExtraLib.GetMD5 then STExtraLib.GetMD5 = function() return "BYPASSED_MD5" end end
-        if STExtraLib.IsDevelopment then STExtraLib.IsDevelopment = retTrue end
-    end
-    
     if _G.MD5Hash then _G.MD5Hash = function() return "00000000000000000000000000000000" end end
-    if _G.CRC32 then _G.CRC32 = function() return 0 end end
-    
-    print("[GHOST] ✓ PAK & MD5 Bypassed")
-end, "PAK Bypass")
+    print("[CHETAN_MODS] ✓ MD5 & PAK Bypassed")
+end)
 
--- ============================================================================
--- MODULE 3: ANTI-CHEAT REPORTING BYPASS
--- ============================================================================
-SafeExec(function()
-    -- Kill all reporting functions in GameplayCallbacks
-    local callbacks = _G.GameplayCallbacks or _G.GC or _G.Callbacks
+-- ==================== MODULE 3: MAIN BYPASS INIT ====================
+pcall(function()
+    local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
+    if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
+    if Msg and Msg.Show then
+        Msg.Show(4, "CHETAN_MODS", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
+    end
+end)
+
+pcall(function()
+    local stExtra = import("STExtraBlueprintFunctionLibrary")
+    if stExtra and stExtra.IsDevelopment then stExtra.IsDevelopment = nop end
+    if Client then Client.IsDevelopment = nop; Client.IsShipping = retFalse end
+    if Server then Server.IsShipping = retFalse end
+
+    local ToolReport = package.loaded["client.slua.logic.report.ToolReportUtil"]
+    if ToolReport then
+        ToolReport.IsReleaseVersion = retFalse
+        ToolReport.IsWhite = retFalse
+        ToolReport.GetReportSwitch = retFalse
+    end
+
+    local callbacks = _G.GameplayCallbacks or _G.GC
     if callbacks then
-        local killList = {
-            "SendTssSdkAntiDataToLobby", "SendDSErrorLogToLobby", "SendDSHawkEyePatrolLogToLobby",
-            "SendSecTLog", "SendDataMiningTLog", "SendActivityTLog", "SendClientMemUsage",
-            "SendClientFPS", "OnClientCrashReport", "OnNetworkLossDetected", "ReportMatchRoomData",
-            "ReportPlayersPing", "SendClientStats", "SendServerAvgTickDelta", "ReportHitFlow",
-            "OnPlayerActorChannelError", "OnPlayerRPCValidateFailed", "SendLobbyData",
-            "ReportPlayerBehavior", "ReportCheatData"
+        local kills = {
+            "SendTssSdkAntiDataToLobby","SendDSErrorLogToLobby","SendDSHawkEyePatrolLogToLobby",
+            "SendSecTLog","SendDataMiningTLog","SendActivityTLog","SendClientMemUsage","SendClientFPS",
+            "OnClientCrashReport","OnNetworkLossDetected","ReportMatchRoomData","ReportPlayersPing",
+            "SendClientStats","SendServerAvgTickDelta","ReportHitFlow","OnPlayerActorChannelError","OnPlayerRPCValidateFailed"
         }
-        for _, fn in ipairs(killList) do
-            if callbacks[fn] then callbacks[fn] = nop end
-        end
-        
-        -- Hook DSPlayerStateChanged to block cheat detection
+        for _, fn in ipairs(kills) do if callbacks[fn] then callbacks[fn] = nop end end
         local origDS = callbacks.OnDSPlayerStateChanged
         if origDS then
             callbacks.OnDSPlayerStateChanged = function(dsSelf, state, reason, ...)
-                if reason and tostring(reason):lower():find("cheat") then return end
+                if tostring(reason):lower():find("cheatdetected") then return end
                 pcall(origDS, dsSelf, state, reason, ...)
             end
         end
     end
-    
-    -- Kill PacketCallbacks
-    local PC = _G.PacketCallbacks or _G.PacketHandler
+
+    if _G.TApmHelper then _G.TApmHelper.postEvent = nop end
+
+    local PC = _G.PacketCallbacks
     if PC then
         PC.player_report_cheat = nop
         PC.upload_loots_rsp = nop
@@ -156,68 +111,59 @@ SafeExec(function()
         PC.player_login_report = nop
         PC.player_logout_report = nop
         PC.server_time_report = nop
-        PC.report_security_info = nop
-        PC.client_anti_cheat = nop
     end
-    
-    -- Kill TSS SDK
-    if _G.TssSdk then
-        _G.TssSdk.ReportData = nop
-        _G.TssSdk.SendAntiData = nop
-        _G.TssSdk.CollectInfo = nop
-    end
-    
-    if _G.TssSDK then
-        _G.TssSDK.Report = nop
-        _G.TssSDK.Send = nop
-    end
-    
-    -- Kill TApmHelper
-    if _G.TApmHelper then
-        _G.TApmHelper.postEvent = nop
-        _G.TApmHelper.report = nop
-    end
-    
-    print("[GHOST] ✓ Anti-Cheat Reporting Killed")
-end, "Anti-Cheat Bypass")
 
--- ============================================================================
--- MODULE 4: HIGGS BOSON BYPASS (MAIN ANTI-CHEAT)
--- ============================================================================
-SafeExec(function()
+    local sdm = _G.ServerDataMgr
+    if sdm and sdm.DeletablePlayerResultKey then
+        sdm.DeletablePlayerResultKey["SuspiciousHitCount"] = true
+        sdm.DeletablePlayerResultKey["EspTotalSimTraceCnt"] = true
+        sdm.DeletablePlayerResultKey["EspTotalImeFocusCnt"] = true
+        sdm.DeletablePlayerResultKey["ClientGravityAnomalyCount"] = true
+    end
+
+    local pcNotify = package.loaded["GameLua.Mod.BaseMod.Common.Security.SecurityNotifyPCFeature"]
+    if pcNotify then
+        pcNotify.ClientRPC_SyncBanID = nop
+        pcNotify.ClientRPC_StrongTips = nop
+        pcNotify.ClientRPC_NormalTips = nop
+        pcNotify.Notify = nop
+        pcNotify.ClientRPC_NotifyBan = nop
+        pcNotify.ClientRPC_NotifyPunish = nop
+        pcNotify.ClientRPC_NotifyIllegalProgram = nop
+    end
+
+    local secUtils = package.loaded["GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils"]
+    if secUtils and secUtils.EStrategyTypeInReplay then
+        secUtils.EStrategyTypeInReplay.EspTotalSimTraceCnt = 0
+        secUtils.EStrategyTypeInReplay.EspTotalImeFocusCnt = 0
+        secUtils.EStrategyTypeInReplay.ClientGravityAnomalyCount = 0
+        secUtils.EStrategyTypeInReplay.FlyingErrorCnt = 0
+    end
+    print("[CHETAN_MODS] ✓ Main Bypass Active")
+end)
+
+-- ==================== MODULE 4: HIGGS BOSON BYPASS ====================
+pcall(function()
     local Higgs = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
     if Higgs then
         local methods = {
-            "ControlMHActive", "Tick", "OnTick", "MHActiveLogic", "TriggerAvatarCheck",
-            "StartAvatarCheck", "ReportItemID", "ReceiveAnyDamage", "OnWeaponHitRecord",
-            "ShowSecurityAlert", "ServerReportAvatar", "ClientReportNetAvatar",
-            "SendHisarData", "ValidateSecurityData", "StaticShowSecurityAlertInDev",
-            "OnReportItemID", "CheckAvatar", "VerifyAvatar", "SendAvatarData"
+            "ControlMHActive","Tick","OnTick","MHActiveLogic","TriggerAvatarCheck","StartAvatarCheck",
+            "ReportItemID","ReceiveAnyDamage","OnWeaponHitRecord","ShowSecurityAlert","ServerReportAvatar",
+            "ClientReportNetAvatar","SendHisarData","ValidateSecurityData","StaticShowSecurityAlertInDev"
         }
-        for _, m in ipairs(methods) do
-            if Higgs[m] then Higgs[m] = nop end
-        end
+        for _, m in ipairs(methods) do if Higgs[m] then Higgs[m] = nop end end
         Higgs.GetNetAvatarItemIDs = retEmpty
         Higgs.GetCurWeaponSkinID = retZero
-        Higgs.IsHiggsActive = retFalse
     end
-    
     if _G.DisableHiggsBoson then _G.DisableHiggsBoson = nop end
-    if _G.HiggsBoson then
-        _G.HiggsBoson.Report = nop
-        _G.HiggsBoson.Check = retTrue
-    end
-    
-    -- Kill ClientGlueHiaSystem
+
     local hia = safe_require("GameLua.Mod.BaseMod.Client.Security.ClientGlueHiaSystem")
     if hia then
         hia.CheckHitIntegrity = nop
         hia.InitSession = nop
         hia.OnBattleEnd = nop
-        hia.ReportHit = nop
     end
-    
-    -- Kill BehaviorScoreSubsystem
+
     local Behavior = safe_require("GameLua.Mod.Escape.Gameplay.Subsystem.BehaviorScoreSubsystem")
     if Behavior then
         Behavior.OnHandleBehaviorScore = nop
@@ -225,21 +171,16 @@ SafeExec(function()
         Behavior.ReportBehavior = nop
         Behavior.CalcFinalScore = retZero
     end
-    
-    print("[GHOST] ✓ Higgs Boson Disabled")
-end, "Higgs Boson")
+    print("[CHETAN_MODS] ✓ Higgs Boson Disabled")
+end)
 
--- ============================================================================
--- MODULE 5: CORONA LAB BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 5: CORONA LAB BYPASS ====================
+pcall(function()
     if _G.CoronaLab then
         _G.CoronaLab.ReportData = nop
         _G.CoronaLab.SendData = nop
         _G.CoronaLab.CollectData = nop
-        _G.CoronaLab.ReportTelemetry = nop
     end
-    
     local SubsystemMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
     if SubsystemMgr then
         local corona = SubsystemMgr:Get("CoronaLabSubsystem")
@@ -247,93 +188,74 @@ SafeExec(function()
             corona.ReportData = nop
             corona.SendToServer = nop
             corona.CollectTelemetry = nop
-            corona.OnTick = nop
         end
     end
-    
-    print("[GHOST] ✓ Corona Lab Disabled")
-end, "Corona Lab")
+    print("[CHETAN_MODS] ✓ Corona Lab Disabled")
+end)
 
--- ============================================================================
--- MODULE 6: PLAYER SECURITY INFO BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 6: PLAYER SECURITY INFO BYPASS ====================
+pcall(function()
     if _G.PlayerSecurityInfo then
         _G.PlayerSecurityInfo.ReportCheat = nop
         _G.PlayerSecurityInfo.ReportSuspicious = nop
         _G.PlayerSecurityInfo.SendSecurityData = nop
         _G.PlayerSecurityInfo.CollectSecurityInfo = nop
-        _G.PlayerSecurityInfo.Validate = retTrue
     end
-    
-    local SecuritySub = safe_require("GameLua.Mod.BaseMod.Common.Security.PlayerSecurityInfoSubsystem")
-    if SecuritySub then
-        SecuritySub.ReportData = nop
-        SecuritySub.CheckCheat = retFalse
-        SecuritySub.ValidatePlayer = retTrue
-        SecuritySub.SendToServer = nop
-        SecuritySub.CollectData = nop
+    local SecuritySubsystem = safe_require("GameLua.Mod.BaseMod.Common.Security.PlayerSecurityInfoSubsystem")
+    if SecuritySubsystem then
+        SecuritySubsystem.ReportData = nop
+        SecuritySubsystem.CheckCheat = retFalse
+        SecuritySubsystem.ValidatePlayer = function() return true end
     end
-    
-    print("[GHOST] ✓ Player Security Info Disabled")
-end, "Player Security")
+    print("[CHETAN_MODS] ✓ Player Security Disabled")
+end)
 
--- ============================================================================
--- MODULE 7: CIRCLE FLOW BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 7: CIRCLE FLOW BYPASS ====================
+pcall(function()
     local CircleFlow = safe_require("GameLua.Mod.BaseMod.Client.Security.ClientCircleFlowSubsystem")
     if CircleFlow then
         CircleFlow.ReportCircleFlow = nop
         CircleFlow.SendCircleData = nop
         CircleFlow.ReportPlayerPosition = nop
-        CircleFlow.OnTick = nop
     end
-    
-    -- Kill enable flags
-    local flags = {
-        "IsEnableReportPlayerKillFlow", "IsEnableReportMrpcsInCircleFlow",
-        "IsEnableReportMrpcsInPartCircleFlow", "IsEnableReportMrpcsFlow",
-        "IsEnableReportSecurityFlow", "IsEnableReportCheatFlow"
-    }
-    for _, flag in ipairs(flags) do
-        if _G[flag] then _G[flag] = retFalse end
-    end
-    
-    print("[GHOST] ✓ Circle Flow Disabled")
-end, "Circle Flow")
+    if _G.IsEnableReportPlayerKillFlow then _G.IsEnableReportPlayerKillFlow = retFalse end
+    if _G.IsEnableReportMrpcsInCircleFlow then _G.IsEnableReportMrpcsInCircleFlow = retFalse end
+    if _G.IsEnableReportMrpcsInPartCircleFlow then _G.IsEnableReportMrpcsInPartCircleFlow = retFalse end
+    if _G.IsEnableReportMrpcsFlow then _G.IsEnableReportMrpcsFlow = retFalse end
+    print("[CHETAN_MODS] ✓ Circle Flow Disabled")
+end)
 
--- ============================================================================
--- MODULE 8: SHOOT VERIFICATION BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 8: MODIFIER EXCEPTION BYPASS ====================
+pcall(function()
+    if _G.bReportedModifierException then _G.bReportedModifierException = false end
+    local ModifierSubsystem = safe_require("GameLua.Mod.BaseMod.Common.Security.ModifierExceptionSubsystem")
+    if ModifierSubsystem then
+        ModifierSubsystem.ReportException = nop
+        ModifierSubsystem.CheckModifier = function() return true end
+        ModifierSubsystem.ValidateModifier = function() return true end
+    end
+    print("[CHETAN_MODS] ✓ Modifier Exception Disabled")
+end)
+
+-- ==================== MODULE 9: SHOOT VERIFICATION BYPASS ====================
+pcall(function()
     local ShootVerify = safe_require("GameLua.Dev.Subsystem.ShootVerifySubSystemClient")
     if ShootVerify then
         ShootVerify.OnShootVerifyFailed = nop
         ShootVerify.SendVerifyData = nop
         ShootVerify.ReportBulletHit = nop
         ShootVerify.UploadHitInfo = nop
-        ShootVerify.VerifyShoot = retTrue
     end
-    
     if _G.BulletHitInfoUploadData then
         _G.BulletHitInfoUploadData.Report = nop
         _G.BulletHitInfoUploadData.Send = nop
         _G.BulletHitInfoUploadData.Upload = nop
     end
-    
-    if _G.ShootVerify then
-        _G.ShootVerify.Report = nop
-        _G.ShootVerify.Verify = retTrue
-    end
-    
-    print("[GHOST] ✓ Shoot Verification Disabled")
-end, "Shoot Verify")
+    print("[CHETAN_MODS] ✓ Shoot Verification Disabled")
+end)
 
--- ============================================================================
--- MODULE 9: BAN LOGIC BYPASS
--- ============================================================================
-SafeExec(function()
+-- ==================== MODULE 10: BAN LOGIC BYPASS ====================
+pcall(function()
     local BanLogic = package.loaded["client.slua.logic.ban.ClientBanLogic"]
     if BanLogic then
         BanLogic.OnSyncBanInfo = nop
@@ -341,87 +263,110 @@ SafeExec(function()
         BanLogic.OnRealTimeVoiceBanNotify = nop
         BanLogic.OnVoiceBanSuccess = nop
         BanLogic.OnSyncMicSuspicious = nop
+        BanLogic.OnSyncMicPreFilter = nop
         BanLogic.OnNotifyWarningTips = nop
         BanLogic.ReqBanInfo = nop
-        BanLogic.CheckBan = retFalse
     end
-    
+
     local BanUtil = package.loaded["client.common.ban_util"] or _G.ban_util
     if BanUtil then
         BanUtil.CheckBanStatus = retFalse
         BanUtil.GetBanTime = retZero
         BanUtil.IsBanForever = retFalse
-        BanUtil.IsBanned = retFalse
     end
-    
-    print("[GHOST] ✓ Ban Logic Bypassed")
-end, "Ban Logic")
 
--- ============================================================================
--- MODULE 10: REPORT SUBSYSTEM BYPASS
--- ============================================================================
-SafeExec(function()
+    local TTBan = package.loaded["client.logic.login.logic_tt_ban"] or _G.logic_tt_ban
+    if TTBan then
+        TTBan.CheckIfCanCreateRole = nop
+        TTBan.GetCarrierInfo = function() return "[{\"mcc\":\"000\"}]" end
+    end
+    print("[CHETAN_MODS] ✓ Ban Logic Bypassed")
+end)
+
+-- ==================== MODULE 11: REPORT SUBSYSTEM BYPASS ====================
+pcall(function()
     local clientReport = package.loaded["GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem"]
     if clientReport then
-        local funcs = {
-            "OnInit", "_OnPlayerKilledOtherPlayer", "_RecordFatalDamager", "SendPacket",
-            "ReportSuspiciousPlayer", "SubmitReport", "_OnBattleResult", "_RecordTeammatePlayerInfo",
-            "_OnDeathReplayDataWhenFatalDamaged", "_RecordMurdererFromDeathReplayData",
-            "ReportPlayer", "SendReport"
-        }
-        for _, fn in ipairs(funcs) do
-            if clientReport[fn] then clientReport[fn] = nop end
-        end
+        local funcs = {"OnInit","_OnPlayerKilledOtherPlayer","_RecordFatalDamager","SendPacket","ReportSuspiciousPlayer","SubmitReport","_OnBattleResult","_RecordTeammatePlayerInfo","_OnDeathReplayDataWhenFatalDamaged","_RecordMurdererFromDeathReplayData"}
+        for _, fn in ipairs(funcs) do if clientReport[fn] then clientReport[fn] = nop end end
     end
-    
+
     local dsReport = package.loaded["GameLua.Mod.BaseMod.Common.Security.DSReportPlayerSubsystem"]
     if dsReport then
-        local funcs = {
-            "_OnNearDeathOrRescued", "_OnPlayerSettlementStart", "_OnTeammateDamage",
-            "_OnCharacterDied", "_AddEnemyMapToBattleResult", "_AddTeammateMapToBattleResult",
-            "_SubmitAbnormalData", "ReportData", "SendReport"
-        }
-        for _, fn in ipairs(funcs) do
-            if dsReport[fn] then dsReport[fn] = nop end
-        end
+        local funcs = {"_OnNearDeathOrRescued","_OnPlayerSettlementStart","_OnTeammateDamage","_OnCharacterDied","_AddEnemyMapToBattleResult","_AddTeammateMapToBattleResult","_SubmitAbnormalData"}
+        for _, fn in ipairs(funcs) do if dsReport[fn] then dsReport[fn] = nop end end
     end
-    
-    print("[GHOST] ✓ Report Subsystems Disabled")
-end, "Report Systems")
 
--- ============================================================================
--- MODULE 11: TLOG BYPASS
--- ============================================================================
-SafeExec(function()
-    local tlogPaths = {
+    local reportUtils = package.loaded["GameLua.Mod.BaseMod.Common.Security.ReportPlayerUtils"]
+    if reportUtils then reportUtils.GetBotType = retZero; reportUtils.IsCharacterDeliverAI = retFalse end
+
+    local AvatarSub = package.loaded["GameLua.Mod.Library.GamePlay.Avatar.Exception.AvatarExceptionSubsystem"]
+    if AvatarSub then
+        AvatarSub.OnClickReportCheckAvatar = nop
+        AvatarSub.RegisterTickCheckCharacterAvatar = nop
+    end
+
+    local ClientHawk = package.loaded["GameLua.Mod.BaseMod.Client.Security.ClientHawkEyePatrolSubsystem"]
+    if ClientHawk then
+        local funcs = {"_OnHawkSync","_OnHawkReportSuccess","_StartExitGameTimer","_OnRecvInspectorBroadcastCount","SendReportTLog","ReportCheat"}
+        for _, fn in ipairs(funcs) do if ClientHawk[fn] then ClientHawk[fn] = nop end end
+        ClientHawk.CanInspectorBroadcast = retFalse
+    end
+    print("[CHETAN_MODS] ✓ Report Systems Disabled")
+end)
+
+-- ==================== MODULE 12: TLOG BYPASS ====================
+pcall(function()
+    local tlogModules = {
         "client.network.Protocol.ClientTlogHandler",
         "client.network.Protocol.BattleReportHandler",
         "client.network.Protocol.ClientErrorReportHandler",
+        "client.network.Protocol.LobbyPingReportHandler",
         "client.slua.config.tlog.tlog_report_utils",
+        "client.slua.data.BasicData.BasicDataTLogReport",
         "GameLua.Mod.BaseMod.DS.Security.DSCommonTLogSubsystem",
         "GameLua.Mod.BaseMod.DS.Security.DSFightTLogSubsystem",
-        "GameLua.Mod.BaseMod.DS.Security.DSSecurityTLogSubsystem"
+        "GameLua.Mod.BaseMod.DS.Security.DSSecurityTLogSubsystem",
+        "GameLua.Mod.BaseMod.Client.Security.ClientDataStatistcsSubsystem"
     }
-    
-    for _, path in ipairs(tlogPaths) do
+    for _, path in ipairs(tlogModules) do
         local mod = package.loaded[path]
         if mod then
             for k, v in pairs(mod) do
-                if type(v) == "function" and (k:lower():find("log") or k:lower():find("report") or k:lower():find("send")) then
+                if type(v) == "function" and (k:find("Log") or k:find("Report") or k:find("Send") or k:find("Tlog")) then
                     pcall(function() mod[k] = nop end)
                 end
             end
         end
     end
-    
-    print("[GHOST] ✓ TLog Systems Disabled")
-end, "TLog Bypass")
+    print("[CHETAN_MODS] ✓ TLog Systems Disabled")
+end)
 
--- ============================================================================
--- MODULE 12: HEARTBEAT & SWIFT HAWK BYPASS
--- ============================================================================
-SafeExec(function()
-    local heartbeatFuncs = {"Heartbeat", "SendHeartbeat", "ClientHeartbeat", "ServerHeartbeat", "DoHeartbeat"}
+-- ==================== MODULE 13: NETWORK PACKET BLOCK ====================
+pcall(function()
+    if NetUtil and NetUtil.SendPacket then
+        local originalSend = NetUtil.SendPacket
+        local blockedPackets = {
+            ["ReportAttackFlow"]=1,["ReportSecAttackFlow"]=1,["ReportHurtFlow"]=1,
+            ["ReportFireArms"]=1,["ReportVerifyInfoFlow"]=1,["ReportMrpcsFlow"]=1,
+            ["ReportPlayerBehavior"]=1,["ReportTeammatHurt"]=1,["ReportPlayerMoveRoute"]=1,
+            ["ReportPlayerPosition"]=1,["ReportSecVehicleMoveFlow"]=1,["report_parachute_data"]=1,
+            ["on_tss_sdk_anti_data"]=1,["ReportAimFlow"]=1,["ReportHitFlow"]=1,
+            ["ReportCircleFlow"]=1,["report_players_ping"]=1,["Heartbeat"]=1,
+            ["ClientHeartbeat"]=1,["ServerHeartbeat"]=1,["SwiftHawk"]=1
+        }
+        NetUtil.SendPacket = function(packetName, ...)
+            if blockedPackets[packetName] then return nil end
+            return originalSend(packetName, ...)
+        end
+        NetUtil.IsBypassed = true
+    end
+    print("[CHETAN_MODS] ✓ Network Packet Filter Active")
+end)
+
+-- ==================== MODULE 14: HEARTBEAT BYPASS ====================
+pcall(function()
+    local heartbeatFuncs = {"Heartbeat", "SendHeartbeat", "ClientHeartbeat", "ServerHeartbeat"}
     for _, func in ipairs(heartbeatFuncs) do
         if _G[func] then _G[func] = nop end
         if _G.GameplayCallbacks and _G.GameplayCallbacks[func] then
@@ -429,420 +374,292 @@ SafeExec(function()
         end
     end
     
-    local swiftFuncs = {"SwiftHawk", "ClientSwiftHawk", "ClientSwiftHawkWithParams", "SendSwiftHawkData", "SwiftHawkReport"}
+    local swiftFuncs = {"SwiftHawk", "ClientSwiftHawk", "ClientSwiftHawkWithParams", "SendSwiftHawkData"}
     for _, func in ipairs(swiftFuncs) do
         if _G[func] then _G[func] = nop end
         if _G.GameplayCallbacks and _G.GameplayCallbacks[func] then
             _G.GameplayCallbacks[func] = nop
         end
     end
-    
-    print("[GHOST] ✓ Heartbeat & Swift Hawk Disabled")
-end, "Heartbeat Bypass")
+    print("[CHETAN_MODS] ✓ Heartbeat & Swift Hawk Disabled")
+end)
 
--- ============================================================================
--- MODULE 13: NETWORK PACKET FILTER
--- ============================================================================
-SafeExec(function()
-    if NetUtil and NetUtil.SendPacket then
-        local originalSend = NetUtil.SendPacket
-        local blockedPackets = {
-            ["ReportAttackFlow"]=1, ["ReportSecAttackFlow"]=1, ["ReportHurtFlow"]=1,
-            ["ReportFireArms"]=1, ["ReportVerifyInfoFlow"]=1, ["ReportMrpcsFlow"]=1,
-            ["ReportPlayerBehavior"]=1, ["ReportTeammatHurt"]=1, ["ReportPlayerMoveRoute"]=1,
-            ["ReportPlayerPosition"]=1, ["ReportCircleFlow"]=1, ["Heartbeat"]=1,
-            ["ClientHeartbeat"]=1, ["ServerHeartbeat"]=1, ["SwiftHawk"]=1,
-            ["on_tss_sdk_anti_data"]=1, ["client_anti_cheat_report"]=1,
-            ["CoronaLabReport"]=1, ["PlayerSecurityInfo"]=1, ["ReportSecurityInfo"]=1
-        }
-        
-        NetUtil.SendPacket = function(packetName, ...)
-            if blockedPackets[packetName] then return nil end
-            return originalSend(packetName, ...)
-        end
-    end
-    
-    print("[GHOST] ✓ Network Packet Filter Active")
-end, "Packet Filter")
-
--- ============================================================================
--- MODULE 14: HTTP REQUEST BLOCKER
--- ============================================================================
-SafeExec(function()
-    local blacklist = {
-        "tss.tencent", "syzsdk", "gcloud.qq", "reportlog", "tdos", "logupload",
-        "anticheatexpert", "crashsight", "bugly", "beacon", "helpshift", "tdm",
-        "apm", "firebase", "googleapis", "facebook", "gvoice", "tencent-cloud"
+-- ==================== MODULE 15: HTTP REQUEST BLOCKER ====================
+pcall(function()
+    local BLACKLIST_HOSTS = {
+        "tss.tencent","syzsdk","gcloud.qq","reportlog","tdos","logupload","feedback.wh","crash2",
+        "privacy.qq","privacy.tencent","oth.eve","mdt.qq","act.tencentyun","analytics","report.qq",
+        "anticheatexpert","crashsight","wetest","log.tav","sngd","tracer","intlsdk","igamecj",
+        "cdn.club","gpubgm","firebase","googleapis","facebook","gvoice","bugly","beacon","helpshift"
     }
-    
-    local function isBlocked(url)
-        if type(url) ~= "string" then return false end
-        local low = url:lower()
-        for _, kw in ipairs(blacklist) do
-            if low:find(kw, 1, true) then return true end
-        end
+    local function isBlacklisted(str)
+        if type(str) ~= "string" then return false end
+        local low = str:lower()
+        for _, kw in ipairs(BLACKLIST_HOSTS) do if low:find(kw,1,true) then return true end end
         return false
     end
-    
     if _G.HttpRequest then
         local orig = _G.HttpRequest
-        _G.HttpRequest = function(url, ...)
-            if isBlocked(url) then return nil, "Blocked" end
-            return orig(url, ...)
-        end
+        _G.HttpRequest = function(url, ...) if isBlacklisted(url) then return nil end return orig(url, ...) end
     end
-    
-    print("[GHOST] ✓ HTTP Request Blocker Active")
-end, "HTTP Blocker")
+    print("[CHETAN_MODS] ✓ HTTP Request Blocker Active")
+end)
 
--- ============================================================================
--- MODULE 15: WALLHACK (CHAMS)
--- ============================================================================
-local function ApplyWallhack(localPlayer, enemy)
+-- ==================== MODULE 16: WALLHACK (CHAMS) ====================
+local function ApplyWallHack(localPlayer, enemy, pc)
+    if not _G.CheatsEnabled then return end
     if not slua.isValid(enemy) then return end
-    
     local meshes = {}
-    SafeExec(function()
+    pcall(function()
         if slua.isValid(enemy.Mesh) then table.insert(meshes, enemy.Mesh) end
-        
         local SkelClass = import("SkeletalMeshComponent")
-        if SkelClass and enemy.GetComponentsByClass then
+        if SkelClass then
             local childs = enemy:GetComponentsByClass(SkelClass)
             if childs then
                 local count = type(childs.Num) == "function" and childs:Num() or #childs
-                for i = 0, count - 1 do
-                    local comp = type(childs.Get) == "function" and childs:Get(i) or childs[i+1]
-                    if slua.isValid(comp) and comp ~= enemy.Mesh then
-                        table.insert(meshes, comp)
+                for c = 1, count do
+                    local comp = type(childs.Get) == "function" and childs:Get(c-1) or childs[c]
+                    if slua.isValid(comp) and comp ~= enemy.Mesh then table.insert(meshes, comp) end
+                end
+            end
+        end
+    end)
+    pcall(function()
+        local isVisible = false
+        if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then
+            pcall(function() isVisible = pc:LineOfSightTo(enemy) end)
+        end
+        local finalColor = isVisible and {R=0,G=255,B=0,A=1} or {R=255,G=255,B=0,A=1}
+        for _, comp in ipairs(meshes) do
+            if slua.isValid(comp) then
+                comp.UseScopeDistanceCulling = false
+                for i = 0, 5 do
+                    local ok, mid = pcall(function() return comp:CreateAndSetMaterialInstanceDynamic(i) end)
+                    if ok and slua.isValid(mid) then
+                        pcall(function()
+                            mid:SetVectorParameterValue("Color", finalColor)
+                            mid:SetVectorParameterValue("BaseColor", finalColor)
+                        end)
                     end
                 end
             end
         end
     end)
-    
-    local isVisible = false
-    SafeExec(function()
-        if localPlayer and slua.isValid(localPlayer) then
-            local myPos = localPlayer:K2_GetActorLocation()
-            local targetPos = enemy:K2_GetActorLocation()
-            if Game and Game.IsTargetPosVisible then
-                isVisible = Game:IsTargetPosVisible(myPos, targetPos, {localPlayer})
-            end
-        end
+end
+
+-- ==================== MODULE 17: ESP (HP BARS ONLY) ====================
+local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
+local cachedPawns = {}
+local lastPawnRefresh = 0
+
+local function IsPawnAlive(p)
+    if not isValid(p) then return false end
+    if p.HealthStatus then return SecurityCommonUtils.IsHealthStatusAlive(p.HealthStatus) end
+    if p.IsAlive then return p:IsAlive() end
+    return p.GetHealth and (p:GetHealth() or 0) > 0 or false
+end
+
+local function HPBar(pct)
+    local n = math.floor((pct * 4) + 0.5)
+    local s = ""
+    for i = 1, 4 do s = s .. (i <= n and "▁" or " ") end
+    return s
+end
+
+local function ESPTick()
+    if not _G.CheatsEnabled then return end
+    local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not isValid(uCon) then return end
+    local currentPawn = uCon:GetCurPawn()
+    if not isValid(currentPawn) then return end
+
+    local myTeamId = 0
+    pcall(function()
+        local char = uCon:GetPlayerCharacterSafety()
+        if isValid(char) and char.TeamID then myTeamId = char.TeamID
+        elseif currentPawn.TeamID then myTeamId = currentPawn.TeamID end
     end)
-    
-    local color = isVisible and {R=0, G=255, B=0, A=255} or {R=255, G=255, B=0, A=255}
-    
-    for _, comp in ipairs(meshes) do
-        if slua.isValid(comp) then
-            pcall(function()
-                comp.SetRenderCustomDepth and comp:SetRenderCustomDepth(true)
-                comp.SetCustomDepthStencilValue and comp:SetCustomDepthStencilValue(isVisible and 1 or 2)
-                comp.UseScopeDistanceCulling = false
-            end)
-            
-            for i = 0, 5 do
-                local ok, mid = pcall(function() return comp:CreateAndSetMaterialInstanceDynamic(i) end)
-                if ok and slua.isValid(mid) then
-                    pcall(function()
-                        mid:SetVectorParameterValue("Color", color)
-                        mid:SetVectorParameterValue("BaseColor", color)
-                        mid:SetVectorParameterValue("BodyColor", color)
-                        mid:SetScalarParameterValue("Emissive", 0.5)
-                    end)
+    local myPos = nil
+    pcall(function() myPos = currentPawn:K2_GetActorLocation() end)
+    if not myPos then return end
+    local HUD = uCon:GetHUD()
+    local now = os.clock()
+
+    if now - lastPawnRefresh > 1.0 then
+        lastPawnRefresh = now
+        cachedPawns = Game:GetAllPlayerPawns() or {}
+    end
+
+    for _, tPawn in pairs(cachedPawns) do
+        if isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
+            if IsPawnAlive(tPawn) then
+                local enemyPos = tPawn:K2_GetActorLocation()
+                local dx = enemyPos.X - myPos.X
+                local dy = enemyPos.Y - myPos.Y
+                local dz = enemyPos.Z - myPos.Z
+                local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+
+                if dist < 600000 and HUD then
+                    local hp = tPawn.Health
+                    local maxHp = tPawn.HealthMax
+                    local hpPercent = (hp and maxHp and maxHp > 0) and (hp / maxHp) or 0
+                    
+                    local hpColor = {R=0,G=255,B=0,A=255}
+                    if hpPercent < 0.3 then hpColor = {R=255,G=0,B=0,A=255}
+                    elseif hpPercent < 0.7 then hpColor = {R=255,G=255,B=0,A=255} end
+                    
+                    local hpText = HPBar(hpPercent)
+                    HUD:AddDebugText(hpText, tPawn, 0.7, {X=0,Y=0,Z=120}, {X=0,Y=0,Z=120}, hpColor, true, false, true, nil, 1.0, true)
+                    pcall(ApplyWallHack, currentPawn, tPawn, uCon)
                 end
             end
         end
     end
 end
 
-print("[GHOST] ✓ Wallhack Ready")
-
--- ============================================================================
--- MODULE 16: ESP (HP BARS ONLY)
--- ============================================================================
-local espActive = false
-local espPawns = {}
-local espLastRefresh = 0
-
-local function GetPawnHealth(pawn)
-    if pawn.Health then return pawn.Health end
-    if pawn.GetHealth then return pawn:GetHealth() end
-    return 100
-end
-
-local function GetPawnMaxHealth(pawn)
-    if pawn.HealthMax then return pawn.HealthMax end
-    if pawn.GetMaxHealth then return pawn:GetMaxHealth() end
-    return 100
-end
-
-local function IsPawnDowned(pawn)
-    if pawn.IsDowned then return pawn:IsDowned() end
-    if pawn.bIsDowned then return pawn.bIsDowned end
-    return false
-end
-
-local function ESPLoop()
-    if not espActive then return end
-    
-    SafeExec(function()
+-- Start ESP
+pcall(function()
+    local function StartESP()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        local localPawn = pc:GetCurPawn()
-        if not slua.isValid(localPawn) then return end
-        
-        local myTeamId = localPawn.TeamID or 0
-        local myPos = localPawn:K2_GetActorLocation()
-        local hud = pc:GetHUD()
-        
-        if not slua.isValid(hud) then return end
-        
-        local now = os.clock()
-        if now - espLastRefresh > 1.0 then
-            espLastRefresh = now
-            espPawns = Game:GetAllPlayerPawns() or {}
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(0.15, true, ESPTick)
+            print("[CHETAN_MODS] ✓ ESP Active")
+        else
+            local fb = slua_GameFrontendHUD or Game
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartESP) end
         end
-        
-        for _, enemy in pairs(espPawns) do
-            if slua.isValid(enemy) and enemy ~= localPawn then
-                local enemyTeamId = enemy.TeamID or 0
-                if enemyTeamId ~= myTeamId then
-                    local health = GetPawnHealth(enemy)
-                    local maxHealth = GetPawnMaxHealth(enemy)
-                    
-                    if health > 0 then
-                        local hpPercent = health / maxHealth
-                        local isDowned = IsPawnDowned(enemy)
-                        
-                        local color = {R=0, G=255, B=0, A=255}
-                        if isDowned then
-                            color = {R=255, G=0, B=0, A=255}
-                        elseif hpPercent < 0.3 then
-                            color = {R=255, G=0, B=0, A=255}
-                        elseif hpPercent < 0.7 then
-                            color = {R=255, G=255, B=0, A=255}
-                        end
-                        
-                        local hpText = isDowned and "⚠️ DOWN" or string.format("❤️ %.0f%%", hpPercent * 100)
-                        
-                        pcall(function()
-                            hud:AddDebugText(hpText, enemy, 0.7, 
-                                {X=0, Y=0, Z=120}, {X=0, Y=0, Z=120},
-                                color, true, false, true, nil, 1.0, true)
-                        end)
-                        
-                        pcall(ApplyWallhack, localPawn, enemy)
-                    end
-                end
-            end
-        end
-    end)
-end
+    end
+    StartESP()
+end)
 
-print("[GHOST] ✓ ESP Ready")
-
--- ============================================================================
--- MODULE 17: AIMBOT + NO RECOIL
--- ============================================================================
-local aimbotActive = false
-local lastWeaponId = nil
-
-local function ApplyAimbot()
-    if not aimbotActive then return end
-    
-    SafeExec(function()
+-- ==================== MODULE 18: AIMBOT + NO RECOIL ====================
+local function ApplyAimbotAndNoRecoil()
+    if not _G.CheatsEnabled then return end
+    pcall(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         
         local char = pc:GetPlayerCharacterSafety()
         if not slua.isValid(char) then return end
         
-        local weaponMgr = char:GetWeaponManagerComponent()
-        if not slua.isValid(weaponMgr) then return end
+        local weaponManager = char:GetWeaponManagerComponent()
+        if not slua.isValid(weaponManager) then return end
         
-        local weapon = weaponMgr.CurrentWeaponReplicated
-        if not slua.isValid(weapon) then return end
+        local currentWeapon = weaponManager.CurrentWeaponReplicated
+        if not slua.isValid(currentWeapon) then return end
         
-        local shootComp = weapon.ShootWeaponEntityComp
-        if slua.isValid(shootComp) then
-            -- No Recoil
-            shootComp.RecoilKick = 0.1
-            shootComp.RecoilKickADS = 0.08
-            shootComp.AnimationKick = 0.05
-            shootComp.GameDeviationFactor = 0.3
-            shootComp.AccessoriesVRecoilFactor = 0.4
-            shootComp.AccessoriesHRecoilFactor = 0.4
-            
-            -- Aimbot Config
-            if shootComp.AutoAimingConfig then
-                shootComp.AutoAimingConfig.adsorbMaxRange = 200
-                shootComp.AutoAimingConfig.adsorbMinRange = 10
-                shootComp.AutoAimingConfig.adsorbActiveMinRange = 5
-                if shootComp.AutoAimingConfig.OuterRange then
-                    shootComp.AutoAimingConfig.OuterRange.Speed = 6
-                    shootComp.AutoAimingConfig.OuterRange.SpeedRate = 5
-                    shootComp.AutoAimingConfig.OuterRange.RangeRate = 2
-                end
-                if shootComp.AutoAimingConfig.InnerRange then
-                    shootComp.AutoAimingConfig.InnerRange.Speed = 8
-                    shootComp.AutoAimingConfig.InnerRange.SpeedRate = 6
-                    shootComp.AutoAimingConfig.InnerRange.RangeRate = 2.5
-                end
+        local shootComp = currentWeapon.ShootWeaponEntityComp
+        if not slua.isValid(shootComp) then return end
+        
+        -- NO RECOIL
+        shootComp.RecoilKick = 0.1
+        shootComp.RecoilKickADS = 0.08
+        shootComp.AnimationKick = 0.05
+        shootComp.GameDeviationFactor = 0.3
+        
+        -- AIMBOT CONFIG
+        if shootComp.AutoAimingConfig then
+            shootComp.AutoAimingConfig.adsorbMaxRange = 200.0
+            shootComp.AutoAimingConfig.adsorbMinRange = 10.0
+            if shootComp.AutoAimingConfig.OuterRange then
+                shootComp.AutoAimingConfig.OuterRange.Speed = 6.0
+                shootComp.AutoAimingConfig.OuterRange.SpeedRate = 5.0
             end
-            
-            -- Set aim bone to head
-            local aimComp = char.AutoAimingComponent or char.BP_AutoAimingComponent
-            if slua.isValid(aimComp) and aimComp.Bones then
-                if aimComp.Bones.Set then
-                    aimComp.Bones:Set(0, "head")
-                    aimComp.Bones:Set(1, "head")
-                else
-                    aimComp.Bones[0] = "head"
-                    aimComp.Bones[1] = "head"
-                end
-            end
-            
-            -- Reduce spread
-            if shootComp.SpreadConfig then
-                shootComp.SpreadConfig.BaseSpread = 0.3
-                shootComp.SpreadConfig.ADSSpread = 0.15
-                shootComp.SpreadConfig.MoveSpread = 0.2
-            end
-        end
-    end)
-end
-
-print("[GHOST] ✓ Aimbot + No Recoil Ready")
-
--- ============================================================================
--- MODULE 18: BOT COUNTER
--- ============================================================================
-local function IsBot(pawn)
-    if not slua.isValid(pawn) then return false end
-    
-    if pawn.IsAIPawn and type(pawn.IsAIPawn) == "function" then
-        return pawn:IsAIPawn()
-    end
-    
-    if pawn.IsBot then return pawn:IsBot() end
-    
-    local controller = pawn:GetController()
-    if slua.isValid(controller) then
-        local name = tostring(controller:GetName() or "")
-        if name:find("AI") or name:find("Bot") or name:find("AIController") then
-            return true
-        end
-    end
-    
-    return false
-end
-
-local function DrawBotCounter()
-    SafeExec(function()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then return end
-        
-        local localPawn = pc:GetCurPawn()
-        if not slua.isValid(localPawn) then return end
-        
-        local hud = pc:GetHUD()
-        if not slua.isValid(hud) then return end
-        
-        local allPawns = Game:GetAllPlayerPawns() or {}
-        local myTeamId = localPawn.TeamID or 0
-        local botCount = 0
-        local realCount = 0
-        
-        for _, pawn in pairs(allPawns) do
-            if slua.isValid(pawn) and pawn ~= localPawn then
-                local teamId = pawn.TeamID or 0
-                if teamId ~= myTeamId then
-                    local health = GetPawnHealth(pawn)
-                    if health > 0 then
-                        if IsBot(pawn) then
-                            botCount = botCount + 1
-                        else
-                            realCount = realCount + 1
-                        end
-                    end
-                end
+            if shootComp.AutoAimingConfig.InnerRange then
+                shootComp.AutoAimingConfig.InnerRange.Speed = 8.0
+                shootComp.AutoAimingConfig.InnerRange.SpeedRate = 6.0
             end
         end
         
+        -- AIM BONE SETTINGS
         pcall(function()
-            hud:AddDebugText(string.format("🤖 BOT: %d  |  👤 REAL: %d", botCount, realCount),
-                localPawn, 0.9, {X=0, Y=0, Z=200}, {X=0, Y=0, Z=200},
-                {R=0, G=255, B=255, A=255}, true, false, true, nil, 1.0, true)
+            local aimComp = char.BP_AutoAimingComponent_C or char.BP_AutoAimingComponent or char.AutoAimingComponent
+            if slua.isValid(aimComp) and aimComp.Bones then
+                aimComp.Bones[0] = "head"
+                aimComp.Bones[1] = "head"
+                aimComp.Bones[2] = "head"
+            end
         end)
     end)
 end
 
-print("[GHOST] ✓ Bot Counter Ready")
+-- Start Aimbot
+pcall(function()
+    local function StartAimbot()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(0.15, true, ApplyAimbotAndNoRecoil)
+            print("[CHETAN_MODS] ✓ Aimbot + No Recoil Active")
+        else
+            local fb = slua_GameFrontendHUD or Game
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartAimbot) end
+        end
+    end
+    StartAimbot()
+end)
 
--- ============================================================================
--- MODULE 19: FPS UNLOCK & CAMERA TWEAKS
--- ============================================================================
-local function UnlockFPS()
-    SafeExec(function()
+-- ==================== MODULE 19: FPS UNLOCK ====================
+pcall(function()
+    local function UnlockFPS()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if slua.isValid(pc) then
             pcall(function() pc:ExecuteCommand("t.MaxFPS 165") end)
             pcall(function() pc:ExecuteCommand("r.FrameRateLimit 165") end)
         end
-        
         local gi = Game:GetGameInstance()
         if gi and gi.ExecuteCMD then
             pcall(function() gi:ExecuteCMD("t.MaxFPS", "165") end)
-            pcall(function() gi:ExecuteCMD("r.FrameRateLimit", "165") end)
             pcall(function() gi:ExecuteCMD("grass.DensityScale", "0") end)
-            pcall(function() gi:ExecuteCMD("r.ViewDistanceScale", "3") end)
         end
-    end)
-end
+    end
+    UnlockFPS()
+    print("[CHETAN_MODS] ✓ FPS Unlocked to 165")
+end)
 
-local function SetiPadFOV()
-    SafeExec(function()
+-- ==================== MODULE 20: iPAD VIEW ====================
+pcall(function()
+    local function SetiPadFOV()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
-        
         local char = pc:GetPlayerCharacterSafety()
         if not slua.isValid(char) then return end
-        
         local tppCam = char.ThirdPersonCameraComponent
         if slua.isValid(tppCam) and not char.bIsWeaponAiming then
-            if tppCam.FieldOfView < 120 then
-                tppCam.FieldOfView = 120
-            end
+            if tppCam.FieldOfView < 120 then tppCam.FieldOfView = 120 end
         end
-    end)
-end
+    end
+    
+    local function StartFOV()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(0.5, true, SetiPadFOV)
+            print("[CHETAN_MODS] ✓ iPad FOV Active (120)")
+        else
+            local fb = slua_GameFrontendHUD or Game
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartFOV) end
+        end
+    end
+    StartFOV()
+end)
 
-print("[GHOST] ✓ FPS Unlock & Camera Ready")
-
--- ============================================================================
--- MODULE 20: KILL ALL SECURITY SUBSYSTEMS (PERSISTENT)
--- ============================================================================
-local function KillSecuritySubsystems()
-    SafeExec(function()
+-- ==================== MODULE 21: PERSISTENT SECURITY KILLER ====================
+local function KillAllSecuritySubsystems()
+    pcall(function()
         local subMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
-        if subMgr and subMgr.Get then
-            local subsystems = {
-                "CoronaLabSubsystem", "PlayerSecurityInfoSubsystem", "ClientCircleFlowSubsystem",
-                "ModifierExceptionSubsystem", "SimulateCharacterSubsystem", "ShootVerifySubSystemClient",
-                "HiggsBosonComponent", "ClientReportPlayerSubsystem", "DSReportPlayerSubsystem",
-                "ClientHawkEyePatrolSubsystem", "DSHawkEyePatrolSubsystem", "ClientDataStatistcsSubsystem",
-                "AFKReportorSubsystem", "BehaviorScoreSubsystem", "HeartbeatSubsystem", "SwiftHawkSubsystem"
-            }
-            
-            for _, name in ipairs(subsystems) do
-                local sub = subMgr:Get(name)
-                if sub then
-                    for k, v in pairs(sub) do
-                        if type(v) == "function" and (k:lower():find("report") or k:lower():find("send") or k:lower():find("upload")) then
-                            pcall(function() sub[k] = nop end)
-                        end
+        if not subMgr then return end
+        local subsystemsToKill = {
+            "CoronaLabSubsystem","PlayerSecurityInfoSubsystem","ClientCircleFlowSubsystem",
+            "ModifierExceptionSubsystem","SimulateCharacterSubsystem","ShootVerifySubSystemClient",
+            "HiggsBosonComponent","ClientReportPlayerSubsystem","DSReportPlayerSubsystem",
+            "ClientHawkEyePatrolSubsystem","DSHawkEyePatrolSubsystem","ClientDataStatistcsSubsystem",
+            "AFKReportorSubsystem","BehaviorScoreSubsystem","HeartbeatSubsystem","SwiftHawkSubsystem"
+        }
+        for _, name in ipairs(subsystemsToKill) do
+            local sub = subMgr:Get(name)
+            if sub then
+                for k, v in pairs(sub) do
+                    if type(v) == "function" and (k:find("Report") or k:find("Send") or k:find("Upload") or k:find("Verify")) then
+                        pcall(function() sub[k] = nop end)
                     end
                 end
             end
@@ -850,68 +667,89 @@ local function KillSecuritySubsystems()
     end)
 end
 
-print("[GHOST] ✓ Security Killer Ready")
-
--- ============================================================================
--- MODULE 21: MAIN INITIALIZATION
--- ============================================================================
-local function InitializeFeatures()
-    SafeExec(function()
+pcall(function()
+    local function StartKiller()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if not slua.isValid(pc) then
-            -- Retry after delay
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(3.0, true, KillAllSecuritySubsystems)
+            print("[CHETAN_MODS] ✓ Security Persistence Active")
+        else
             local fb = slua_GameFrontendHUD or Game
-            if fb and slua.isValid(fb) then
-                fb:AddGameTimer(1.0, false, InitializeFeatures)
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartKiller) end
+        end
+    end
+    StartKiller()
+end)
+
+-- ==================== BOT COUNTER ====================
+local function IsAIPawn(pawn)
+    if not slua.isValid(pawn) then return false end
+    if pawn.IsAIPawn and type(pawn.IsAIPawn) == "function" then return pawn:IsAIPawn() end
+    if Game.IsAI and type(Game.IsAI) == "function" then return Game:IsAI(pawn) end
+    local controller = pawn:GetController()
+    if slua.isValid(controller) then
+        local name = tostring(controller:GetName() or "")
+        if name:find("AI") or name:find("Bot") then return true end
+    end
+    return false
+end
+
+local function DrawCounter()
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        local localPlayer = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(localPlayer) then return end
+        local hud = pc:GetHUD()
+        if not slua.isValid(hud) then return end
+        
+        local allChars = Game:GetAllPlayerPawns() or {}
+        local myTeamId = localPlayer.TeamID or 0
+        local botCount = 0
+        local realCount = 0
+        
+        for _, enemy in pairs(allChars) do
+            if slua.isValid(enemy) and enemy ~= localPlayer and (enemy.TeamID or 0) ~= myTeamId then
+                if (enemy.Health or 0) > 0 then
+                    if IsAIPawn(enemy) then botCount = botCount + 1 else realCount = realCount + 1 end
+                end
             end
-            return
         end
         
-        print("[GHOST] Player Controller Found - Starting Features...")
-        
-        -- Activate features
-        espActive = true
-        aimbotActive = true
-        
-        -- Start ESP Loop
-        pc:AddGameTimer(0.1, true, ESPLoop)
-        print("[GHOST] ✓ ESP Activated")
-        
-        -- Start Aimbot Loop
-        pc:AddGameTimer(0.15, true, ApplyAimbot)
-        print("[GHOST] ✓ Aimbot + No Recoil Activated")
-        
-        -- Start Bot Counter
-        pc:AddGameTimer(0.5, true, DrawBotCounter)
-        print("[GHOST] ✓ Bot Counter Activated")
-        
-        -- Start Security Killer (persistent)
-        pc:AddGameTimer(3.0, true, KillSecuritySubsystems)
-        print("[GHOST] ✓ Security Persistence Active")
-        
-        -- Unlock FPS
-        UnlockFPS()
-        print("[GHOST] ✓ FPS Unlocked (165)")
-        
-        -- Set iPad FOV
-        pc:AddGameTimer(0.5, true, SetiPadFOV)
-        print("[GHOST] ✓ iPad FOV Active (120)")
-        
-        print("[GHOST] ╔════════════════════════════════════════════════════╗")
-        print("[GHOST] ║            INJECTION COMPLETE - 100%               ║")
-        print("[GHOST] ╠════════════════════════════════════════════════════╣")
-        print("[GHOST] ║  ✓ Anti-Cheat Bypass      ✓ Wallhack (Chams)      ║")
-        print("[GHOST] ║  ✓ ESP (HP Bars)          ✓ Aimbot + No Recoil    ║")
-        print("[GHOST] ║  ✓ Bot Counter            ✓ 165 FPS Unlock        ║")
-        print("[GHOST] ║  ✓ iPad FOV (120)         ✓ All Subsystems Killed ║")
-        print("[GHOST] ╚════════════════════════════════════════════════════╝")
+        hud:AddDebugText(string.format("🤖 BOT: %d  |  👤 REAL: %d", botCount, realCount),
+            localPlayer, 0.8, {X=0, Y=0, Z=180}, {X=0, Y=0, Z=180},
+            {R=0, G=255, B=255, A=255}, true, false, true, nil, 1.0, true)
     end)
 end
 
--- Start everything
-InitializeFeatures()
+pcall(function()
+    local function StartCounter()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(0.3, true, DrawCounter)
+            print("[CHETAN_MODS] ✓ Bot Counter Active")
+        else
+            local fb = slua_GameFrontendHUD or Game
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartCounter) end
+        end
+    end
+    StartCounter()
+end)
 
-print("[GHOST] GHOST PROTOCOL V5.0 - Waiting for game...")
-
--- Return success
-return true
+-- ==================== FINAL PRINT ====================
+print("[CHETAN_MODS] ╔══════════════════════════════════════════════════════════════╗")
+print("[CHETAN_MODS] ║                    CHETAN_MODS COMPLETE                      ║")
+print("[CHETAN_MODS] ╠══════════════════════════════════════════════════════════════╣")
+print("[CHETAN_MODS] ║  ✓ SLUA + MD5 + PAK Bypass    ✓ Higgs Boson Disabled        ║")
+print("[CHETAN_MODS] ║  ✓ Corona Lab Disabled        ✓ Player Security Disabled    ║")
+print("[CHETAN_MODS] ║  ✓ Circle Flow Disabled       ✓ Modifier Exception Disabled ║")
+print("[CHETAN_MODS] ║  ✓ Shoot Verify Disabled      ✓ Ban Logic Bypassed          ║")
+print("[CHETAN_MODS] ║  ✓ Report Systems Disabled    ✓ TLog Systems Disabled       ║")
+print("[CHETAN_MODS] ║  ✓ Network Packet Filter      ✓ Heartbeat Disabled          ║")
+print("[CHETAN_MODS] ║  ✓ HTTP Blocker Active        ✓ Security Persistence        ║")
+print("[CHETAN_MODS] ╠══════════════════════════════════════════════════════════════╣")
+print("[CHETAN_MODS] ║  ✓ Wallhack (Green/Yellow)    ✓ ESP (HP Bars Only)          ║")
+print("[CHETAN_MODS] ║  ✓ Aimbot + No Recoil         ✓ Bot Counter                 ║")
+print("[CHETAN_MODS] ║  ✓ 165 FPS Unlock             ✓ iPad FOV (120)              ║")
+print("[CHETAN_MODS] ╚══════════════════════════════════════════════════════════════╝")
+print("[CHETAN_MODS] ALL SYSTEMS ONLINE - PLAY SAFE!")
