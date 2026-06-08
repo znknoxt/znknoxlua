@@ -1,7 +1,7 @@
 -- ============================================================================
 -- ULTIMATE MERGED BYPASS v6.0 - "GHOST PROTOCOL + AK MOD"
 -- Complete Anti-Detection | ESP | Aimbot | Self-Healing
--- Fully Integrated & Optimized for 2026
+-- INJECTOR COMPATIBLE VERSION (No BRPlayerCharacterBase Overwrite)
 -- ============================================================================
 
 -- ============================================================================
@@ -257,7 +257,6 @@ function Module_LogBlocker:Initialize()
             end
         end
         
-        -- AKMOD Extra log blocking
         local ug = package.loaded["client.slua.logic.ugc.UGCNewTLogReport"] or package.loaded["client.slua.data.BasicData.BasicDataTLogReport"]
         if ug then ug.SendExposeReq = nop; ug.SendInteractionReq = nop; ug.TLogReport = nop end
         local ut = package.loaded["client.slua.logic.ugc.logic_ugc_tlog"]
@@ -335,7 +334,6 @@ function Module_ScannerBlocker:Initialize()
             TssSdk.VerifyProcess = SafeWrap(TssSdk.VerifyProcess, RetTrueMimic, 5)
         end
         
-        -- AKMOD extra scanner blocking
         local ac = package.loaded["blacklist.slua.logic.lobby_gm.AvatarCheckerModule"]
         if ac then ac.CheckAvatar = RetTrueMimic; ac.ReportException = nop end
         local mw = package.loaded["client.slua.logic.memory_warning.logic_memory_warning"]
@@ -387,7 +385,6 @@ function Module_ReportFlowBlocker:Initialize()
             if _G[flag] then _G[flag] = SafeWrap(_G[flag], RetFalseMimic, 5) end
         end
         
-        -- AKMOD report blocking
         local ToolReport = package.loaded["client.slua.logic.report.ToolReportUtil"]
         if ToolReport then
             ToolReport.IsReleaseVersion = RetFalseMimic
@@ -479,7 +476,6 @@ function Module_ClientFlowBypass:Initialize()
         if _G.ReportPlayerKillFlow then _G.ReportPlayerKillFlow = nop end
         if _G.ClientSecPlayerKillFlow then _G.ClientSecPlayerKillFlow = nop end
         
-        -- AKMOD: Kill callbacks in GameplayCallbacks
         local callbacks = _G.GameplayCallbacks or _G.GC
         if callbacks then
             local kills = {
@@ -592,7 +588,6 @@ function Module_HiggsAntiCheatBypass:Initialize()
             end
         end
         
-        -- AKMOD: Higgs bypass per player
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if slua.isValid(pc) then
             if pc.HiggsBoson then
@@ -715,7 +710,6 @@ function Module_AntiReportGameplayBypass:Initialize()
         
         GC.IsBypassed = true
         
-        -- AKMOD: Client and DS report subsystem blocking
         local clientReport = package.loaded["GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem"]
         if clientReport then
             local funcs = {"OnInit","_OnPlayerKilledOtherPlayer","_RecordFatalDamager","SendPacket","ReportSuspiciousPlayer","SubmitReport","_OnBattleResult","_RecordTeammatePlayerInfo","_OnDeathReplayDataWhenFatalDamaged","_RecordMurdererFromDeathReplayData"}
@@ -1137,6 +1131,7 @@ local function ReadLiveConfig()
 end
 
 _G.ReadLiveConfig = ReadLiveConfig
+
 -- ============================================================================
 -- ESP SYSTEM
 -- ============================================================================
@@ -1509,6 +1504,7 @@ local function SetupConfigTimer()
         end)
     end)
 end
+
 local function FinalStart()
     if StartPersistentHunt() then
         SetupConfigTimer()
@@ -1527,33 +1523,24 @@ local function InitializeAllModules()
     SafeExec(function()
         print("[MERGED] Starting complete initialization...")
         
-        -- Core Bypasses
         Module_SLuaBypass:Initialize()
         Module_MD5Bypass:Initialize()
         Module_VisualsBypass:Initialize()
         Module_LogBlocker:Initialize()
         Module_ScannerBlocker:Initialize()
-        
-        -- Flow Bypasses
         Module_ReportFlowBlocker:Initialize()
         Module_ClientFlowBypass:Initialize()
         Module_HeartbeatSwiftBypass:Initialize()
-        
-        -- Security Bypasses
         Module_HiggsAntiCheatBypass:Initialize()
         Module_AntiReportGameplayBypass:Initialize()
-        
-        -- Network & System
         Module_TLogBlocker:Initialize()
         Module_NetworkBlock:Initialize()
         Module_SubsystemKiller:Initialize()
         Module_HttpFileBlocker:Initialize()
         
-        -- Feature Enhancements
         _G.Enable165FPSLogic()
         _G.EnableiPadViewUI()
         
-        -- Read config
         ReadLiveConfig()
         
         GhostCore.Active = true
@@ -1594,56 +1581,13 @@ local function StartGhostProtocol()
 end
 
 -- ============================================================================
--- MAIN CLASS (BRPlayerCharacterBase)
+-- EXPOSED FUNCTION TO CALL FROM INJECTOR
 -- ============================================================================
-local Class = require("class")
-local CCharacterBase = require("GameLua.GameCore.Framework.CharacterBase")
-local CombineClass = require("combine_class")
-
-local BRPlayerCharacterBase = {}
-
-function BRPlayerCharacterBase:ctor()
-end
-
-function BRPlayerCharacterBase:_PostConstruct()
-    if BRPlayerCharacterBase.__super then
-        BRPlayerCharacterBase.__super._PostConstruct(self)
-    end
-    self:InitAddSpecialMoveInfo()
-    self.bCanNearDeathGiveup = true
+function _G.StartMergedBypass()
     StartGhostProtocol()
-    print("[MERGED] Ghost Protocol v6.0 Activated - Complete Protection")
 end
 
-function BRPlayerCharacterBase:ReceiveBeginPlay()
-    if BRPlayerCharacterBase.__super then
-        BRPlayerCharacterBase.__super.ReceiveBeginPlay(self)
-    end
-    if Client then
-        local GameplayData = require("GameLua.GameCore.Data.GameplayData")
-        GameplayData.AddCharacter(self.Object)
-    end
+-- Auto-start if in game environment
+if slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController() then
+    StartGhostProtocol()
 end
-
-function BRPlayerCharacterBase:ReceiveEndPlay(EndPlayReason)
-    if BRPlayerCharacterBase.__super then
-        BRPlayerCharacterBase.__super.ReceiveEndPlay(self, EndPlayReason)
-    end
-    if Client then
-        local GameplayData = require("GameLua.GameCore.Data.GameplayData")
-        GameplayData.RemoveCharacter(self.Object)
-    end
-end
-
-function BRPlayerCharacterBase:SwitchWeaponCheck(Slot, IgnoreState) return true end
-function BRPlayerCharacterBase:HandleOnAttachedToVehicle(uVehicle) end
-function BRPlayerCharacterBase:HandleOnDetachedFromVehicle(uLastVehicle) end
-function BRPlayerCharacterBase:ClearAttachToVehicleTimer() end
-
-local CBRPlayerCharacterBase = Class(CCharacterBase, nil, BRPlayerCharacterBase)
-
-return CombineClass.DeclareFeature(CBRPlayerCharacterBase, {
-    { SkyTransition = "GameLua.Mod.BaseMod.Gameplay.Feature.SkyControl.PlayerCharacterSkyTransitionFeature" },
-    { CarryDeadBoxFeature = "GameLua.Mod.Library.GamePlay.Feature.CarryDeadBoxFeature" },
-}, "BRPlayerCharacterBase")
-
