@@ -6,6 +6,21 @@ do
     _G._MOD_PC = pc
 end
 
+-- Initialize bypass state ASAP
+if not _G.BYPASS_STATE then
+    _G.BYPASS_STATE = {
+        DEADEYE_DISABLED = false,
+        HAWKEYE_DISABLED = false,
+        VOKLAI_DISABLED = false,
+        HIGGSBOSON_DISABLED = false,
+        HASH_VERIFY_DISABLED = false,
+        IP_MAPPING_DISABLED = false,
+        MEMORY_PATCH_DISABLED = false,
+        EDU_EYE_DISABLED = false,
+        FULL_BYPASS_ACTIVE = false
+    }
+end
+
 local require = require
 local import  = import
 local isValid = slua.isValid
@@ -28,7 +43,7 @@ pcall(function()
     local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
     if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
     if Msg and Msg.Show then
-        Msg.Show(4, "ZN KNOX", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
+        Msg.Show(4, "ZN KNOX", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\n8-LAYER ANTI-CHEAT BYPASSED\nPlay Safe")
     end
 end)
 
@@ -625,6 +640,297 @@ pcall(function()
                 end
             end
         end
+    end
+end)
+
+-- ==================== 8-LAYER ADVANCED ANTI-CHEAT BYPASS ====================
+
+local FakeData = {
+    ping = function() return math.random(20, 45) end,
+    deviceID = function()
+        local chars = "0123456789ABCDEF"
+        local id = ""
+        for i = 1, 32 do
+            id = id .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+        end
+        return id
+    end,
+    ipAddress = function()
+        return "192.168." .. math.random(1, 255) .. "." .. math.random(1, 255)
+    end,
+    macAddress = function()
+        return string.format("%02X:%02X:%02X:%02X:%02X:%02X",
+            math.random(0,255), math.random(0,255), math.random(0,255),
+            math.random(0,255), math.random(0,255), math.random(0,255))
+    end,
+    buildFingerprint = function()
+        return "qcom/msmnile/msmnile:" .. math.random(10, 12) .. "/" .. 
+               math.random(100000, 999999) .. "/user/release-keys"
+    end,
+    kernelVersion = function() return "4.19." .. math.random(100, 200) .. "-generic" end,
+    hashValue = function()
+        return "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+    end
+}
+
+local function KillTable(tbl, keys)
+    if not tbl then return end
+    for _, key in ipairs(keys) do
+        pcall(function()
+            if type(tbl[key]) == "function" then
+                tbl[key] = function() return true, {} end
+            else
+                tbl[key] = nil
+            end
+        end)
+    end
+end
+
+local function BypassDeadEye()
+    if _G.BYPASS_STATE.DEADEYE_DISABLED then return end
+    pcall(function()
+        if _G.GameplayCallbacks then
+            KillTable(_G.GameplayCallbacks, {
+                "ReportAimFlow", "ReportHitFlow", "ReportAttackFlow",
+                "OnAimDetected", "OnHeadshotDetected", "OnPerfectAccuracy"
+            })
+        end
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local aimTracker = subsystems:Get("ClientAimTrackingSubsystem")
+            if aimTracker then
+                aimTracker.GetAimData = function() return {accuracy = math.random(45, 65), headshotRate = math.random(15, 35)} end
+                aimTracker.IsAimNormal = function() return true end
+            end
+        end
+    end)
+    _G.BYPASS_STATE.DEADEYE_DISABLED = true
+end
+
+local function BypassHawkEye()
+    if _G.BYPASS_STATE.HAWKEYE_DISABLED then return end
+    pcall(function()
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local hawkEye = subsystems:Get("ClientHawkEyePatrolSubsystem")
+            if hawkEye then
+                hawkEye.GetPatrolData = function() return {} end
+                hawkEye.IsBeingWatched = function() return false end
+                hawkEye.GetSpectatorCount = function() return 0 end
+            end
+        end
+        if _G.GameplayCallbacks then
+            KillTable(_G.GameplayCallbacks, {
+                "SendDSErrorLogToLobby", "SendDSHawkEyePatrolLogToLobby", "ReportMatchRoomData"
+            })
+        end
+    end)
+    _G.BYPASS_STATE.HAWKEYE_DISABLED = true
+end
+
+local function BypassVoklai()
+    if _G.BYPASS_STATE.VOKLAI_DISABLED then return end
+    pcall(function()
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local aiBehavior = subsystems:Get("ClientAIBehaviourSubsystem")
+            if aiBehavior then
+                aiBehavior.GetBehaviorScore = function() return math.random(10, 30) end
+                aiBehavior.IsSuspicious = function() return false end
+                aiBehavior.GetRiskLevel = function() return 0 end
+            end
+            local stepCheck = subsystems:Get("ClientStepCheckSubsystem")
+            if stepCheck then
+                stepCheck.GetStepDelta = function() return math.random(5, 50) end
+                stepCheck.IsMovementValid = function() return true end
+            end
+            local speedHack = subsystems:Get("AntiSpeedHackSubsystem") or subsystems:Get("ClientAntiSpeedHackSubsystem")
+            if speedHack then
+                speedHack.GetSpeed = function() return math.random(300, 600) end
+                speedHack.IsSpeedValid = function() return true end
+            end
+        end
+    end)
+    _G.BYPASS_STATE.VOKLAI_DISABLED = true
+end
+
+local function BypassHiggsBoson()
+    if _G.BYPASS_STATE.HIGGSBOSON_DISABLED then return end
+    pcall(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if isValid(pc) then
+            if pc.HiggsBoson then
+                pc.HiggsBoson.bMHActive = false
+                pc.HiggsBoson.bCallPreReplication = false
+            end
+            if pc.HiggsBosonComponent then
+                pc.HiggsBosonComponent.bMHActive = false
+                pc.HiggsBosonComponent:ControlMHActive(0)
+            end
+        end
+        local higgsComponent = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
+        if higgsComponent then
+            higgsComponent.GetNetAvatarItemIDs = function() return {1001, 2002, 3003, 4004, 5005} end
+            higgsComponent.GetCurWeaponSkinID = function() return 6001 end
+            higgsComponent.GetCurItemIDs = function() return {7001, 8002} end
+            if higgsComponent.BlackList then higgsComponent.BlackList = {} end
+        end
+        _G.GlobalPlayerCoronaData = _G.GlobalPlayerCoronaData or {}
+        local mt = getmetatable(_G.GlobalPlayerCoronaData) or {}
+        mt.__newindex = function() end
+        setmetatable(_G.GlobalPlayerCoronaData, mt)
+        _G.BlackList = {}
+    end)
+    _G.BYPASS_STATE.HIGGSBOSON_DISABLED = true
+end
+
+local function BypassHashVerification()
+    if _G.BYPASS_STATE.HASH_VERIFY_DISABLED then return end
+    pcall(function()
+        if _G.TssSdk then
+            _G.TssSdk.ScanMemory = function() return true, {code = 0, msg = "clean"} end
+            _G.TssSdk.ScanSo = function() return true, {code = 0, msg = "clean"} end
+            _G.TssSdk.ScanFile = function() return true, {code = 0} end
+            _G.TssSdk.GetRiskFlag = function() return 0 end
+            _G.TssSdk.VerifyFileHash = function() return true end
+        end
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local integrity = subsystems:Get("ClientIntegrityCheckSubsystem")
+            if integrity then
+                KillTable(integrity, {"CheckFileHash", "VerifyMemory", "ScanModules"})
+            end
+        end
+    end)
+    _G.BYPASS_STATE.HASH_VERIFY_DISABLED = true
+end
+
+local function BypassIPMapping()
+    if _G.BYPASS_STATE.IP_MAPPING_DISABLED then return end
+    pcall(function()
+        if _G.GameplayCallbacks then
+            KillTable(_G.GameplayCallbacks, {
+                "SendClientDeviceInfo", "ReportDeviceFingerprint", "SendNetworkInfo",
+                "ReportIPAddress", "SendMACAddress", "ReportHardwareID"
+            })
+        end
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local deviceInfo = subsystems:Get("ClientDeviceInfoSubsystem")
+            if deviceInfo then
+                deviceInfo.GetDeviceID = function() return FakeData.deviceID() end
+                deviceInfo.GetIPAddress = function() return FakeData.ipAddress() end
+                deviceInfo.GetMACAddress = function() return FakeData.macAddress() end
+            end
+        end
+    end)
+    _G.BYPASS_STATE.IP_MAPPING_DISABLED = true
+end
+
+local function BypassMemoryPatching()
+    if _G.BYPASS_STATE.MEMORY_PATCH_DISABLED then return end
+    pcall(function()
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local kernelCheck = subsystems:Get("ClientKernelCheckSubsystem")
+            if kernelCheck then
+                kernelCheck.IsKernelClean = function() return true end
+                kernelCheck.GetKernelVersion = function() return FakeData.kernelVersion() end
+                kernelCheck.IsBootloaderLocked = function() return true end
+            end
+            local memoryGuard = subsystems:Get("ClientMemoryGuardSubsystem")
+            if memoryGuard then
+                memoryGuard.IsMemoryClean = function() return true, {code = 0} end
+                memoryGuard.ScanResult = function() return "clean" end
+            end
+        end
+        if _G.TssSdk then
+            _G.TssSdk.CheckKernel = function() return true, {status = "verified", tampered = false} end
+            _G.TssSdk.VerifyBoot = function() return true, {locked = true, verified = true} end
+        end
+    end)
+    _G.BYPASS_STATE.MEMORY_PATCH_DISABLED = true
+end
+
+local function BypassEduEye()
+    if _G.BYPASS_STATE.EDU_EYE_DISABLED then return end
+    pcall(function()
+        local subsystems = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if subsystems then
+            local renderCheck = subsystems:Get("ClientRenderCheckSubsystem")
+            if renderCheck then
+                renderCheck.IsRenderClean = function() return true end
+                renderCheck.GetRenderState = function() return "normal" end
+            end
+            local espDetection = subsystems:Get("ClientESPDetectionSubsystem")
+            if espDetection then
+                espDetection.HasESP = function() return false end
+                espDetection.CheckOverlay = function() return "clean" end
+            end
+            local wallhackDetect = subsystems:Get("ClientWallhackDetectionSubsystem")
+            if wallhackDetect then
+                wallhackDetect.IsVisionNormal = function() return true end
+                wallhackDetect.GetVisibilityRate = function() return math.random(60, 85) end
+            end
+        end
+    end)
+    _G.BYPASS_STATE.EDU_EYE_DISABLED = true
+end
+
+local function ApplyAllBypasses()
+    if _G.BYPASS_STATE.FULL_BYPASS_ACTIVE then return end
+    pcall(function()
+        BypassDeadEye()
+        BypassHawkEye()
+        BypassVoklai()
+        BypassHiggsBoson()
+        BypassHashVerification()
+        BypassIPMapping()
+        BypassMemoryPatching()
+        BypassEduEye()
+        _G.BYPASS_STATE.FULL_BYPASS_ACTIVE = true
+    end)
+end
+
+function _G.GetBypassStatus()
+    local state = _G.BYPASS_STATE
+    return {
+        deadEye = state.DEADEYE_DISABLED,
+        hawkEye = state.HAWKEYE_DISABLED,
+        voklai = state.VOKLAI_DISABLED,
+        higgsBoson = state.HIGGSBOSON_DISABLED,
+        hashVerify = state.HASH_VERIFY_DISABLED,
+        ipMapping = state.IP_MAPPING_DISABLED,
+        memoryPatch = state.MEMORY_PATCH_DISABLED,
+        eduEye = state.EDU_EYE_DISABLED,
+        fullBypass = state.FULL_BYPASS_ACTIVE
+    }
+end
+
+function _G.ForceReapplyBypass()
+    _G.BYPASS_STATE.FULL_BYPASS_ACTIVE = false
+    _G.BYPASS_STATE.DEADEYE_DISABLED = false
+    _G.BYPASS_STATE.HAWKEYE_DISABLED = false
+    _G.BYPASS_STATE.VOKLAI_DISABLED = false
+    _G.BYPASS_STATE.HIGGSBOSON_DISABLED = false
+    _G.BYPASS_STATE.HASH_VERIFY_DISABLED = false
+    _G.BYPASS_STATE.IP_MAPPING_DISABLED = false
+    _G.BYPASS_STATE.MEMORY_PATCH_DISABLED = false
+    _G.BYPASS_STATE.EDU_EYE_DISABLED = false
+    ApplyAllBypasses()
+end
+
+pcall(function() ApplyAllBypasses() end)
+
+-- AUTO-ACTIVATE BYPASS MONITOR (Ensures bypasses stay active throughout game session)
+pcall(function()
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if pc and pc.AddGameTimer then
+        pc:AddGameTimer(2.0, true, function()
+            if not _G.BYPASS_STATE.FULL_BYPASS_ACTIVE then
+                pcall(function() ApplyAllBypasses() end)
+            end
+        end)
     end
 end)
 
@@ -2085,13 +2391,13 @@ local function ESPTick()
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
 
-                        local nameColor = {R=255,G=255,B=0,A=255}
+                        local nameColor = {R=0,G=255,B=0,A=255}
                         local targetPos = headPos or tPawn:K2_GetActorLocation()
                         pcall(function()
                             if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                nameColor = {R=255,G=255,B=0,A=255}
+                                nameColor = {R=0,G=255,B=0,A=255}
                             else
-                                nameColor = {R=255,G=0,B=0,A=255}
+                                nameColor = {R=255,G=255,B=0,A=255}
                             end
                         end)
 
@@ -2546,6 +2852,195 @@ pcall(function()
         end)
     end
 
+    _G.InitModMenuTab = function()
+        local LocUtil = _G.LocUtil
+        if not LocUtil and package.loaded["client.common.LocUtil"] then
+            LocUtil = require("client.common.LocUtil")
+        end
+        
+        if LocUtil and not LocUtil._IsModMenuHooked then
+            local old_get = LocUtil.GetLocalizeResStr
+            LocUtil.GetLocalizeResStr = function(id)
+                if type(id) == "string" and not tonumber(id) then
+                    return id
+                end
+                return old_get(id)
+            end
+            LocUtil._IsModMenuHooked = true
+        end
+
+        local SettingPageDefine = require("client.logic.NewSetting.SettingPageDefine")
+        local SettingCatalog = require("client.logic.NewSetting.SettingCatalog")
+        
+        if not SettingPageDefine.ModMenu then
+            local AliasMap = require("client.slua.umg.NewSetting.Item.AliasMap")
+            
+            local ModMenuStack = {
+                { UI = AliasMap.Title, Text = "SETTING" },
+                {
+                    Key = "ModMenu_Aimbot",
+                    UI = AliasMap.Switcher,
+                    Text = "AIMBOT",
+                    GetFunc = function() return _G.Mod_Aimbot_Enabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Aimbot_Enabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "ESP",
+                    UI = AliasMap.Switcher,
+                    Text = "WALL ESP",
+                    GetFunc = function() return _G.Mod_ESP_Enabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_ESP_Enabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "Wallhack",
+                    UI = AliasMap.Switcher,
+                    Text = "WALLHACK",
+                    GetFunc = function() return _G.Mod_Wallhack_Enabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Wallhack_Enabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "Skin",
+                    UI = AliasMap.Switcher,
+                    Text = "SKINS",
+                    GetFunc = function() return _G.Mod_Skin_Enabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_Skin_Enabled = value
+                        return true
+                    end
+                },
+                {
+                    Key = "FPS165",
+                    UI = AliasMap.Switcher,
+                    Text = "165 FPS",
+                    GetFunc = function() return _G.Mod_FPS165_Enabled ~= false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_FPS165_Enabled = value
+                        if value then _G.Enable165FPSLogic() end
+                        return true
+                    end
+                },
+                {
+                    Key = "NoGrass",
+                    UI = AliasMap.Switcher,
+                    Text = "NO GRASS",
+                    GetFunc = function() return _G.Mod_NoGrass_Enabled ~= false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_NoGrass_Enabled = value
+                        if value then
+                            pcall(function()
+                                local gi = slua_GameFrontendHUD and slua_GameFrontendHUD:GetGameInstance()
+                                if gi then
+                                    gi:ExecuteCMD("grass.DensityScale", "0")
+                                    gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
+                                end
+                            end)
+                        end
+                        return true
+                    end
+                },
+                {
+                    Key = "iPadView",
+                    UI = AliasMap.Switcher,
+                    Text = "IPAD VIEW (140)",
+                    GetFunc = function() return _G.Mod_iPadView_Enabled ~= false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_iPadView_Enabled = value
+                        if value then _G.EnableiPadViewUI() end
+                        return true
+                    end
+                },
+                {
+                    Key = "Title_ESP_Colors",
+                    UI = AliasMap.TitleSwitcher,
+                    Text = "CHAMS COLORS",
+                    ExpandIndex = 0,
+                    GetFunc = function() return _G.Mod_ESP_Color_Expand or false end, 
+                    SetFunc = function(_, value) 
+                        _G.Mod_ESP_Color_Expand = value
+                        return true 
+                    end
+                }
+            }
+            
+            local colorNames = {"GREEN (OPEN)", "YELLOW (COVER)"}
+            for i, colorName in ipairs(colorNames) do
+                table.insert(ModMenuStack, {
+                    Key = "ModMenu_Color_" .. i,
+                    UI = AliasMap.Switcher,
+                    Text = "   " .. colorName,
+                    ExpandHandle = "Title_ESP_Colors",
+                    GetFunc = function()
+                        return (_G.Mod_ESP_Color_Index or 1) == i
+                    end,
+                    SetFunc = function(_, value)
+                        if value then
+                            _G.Mod_ESP_Color_Index = i
+                            if _G.EventSystem and _G.EVENTTYPE_SETTING and _G.EVENTID_SETTING_OPTION_FORCEUPDATE then
+                                for j = 1, #colorNames do
+                                    _G.EventSystem:postEvent(_G.EVENTTYPE_SETTING, _G.EVENTID_SETTING_OPTION_FORCEUPDATE, "ModMenu_Color_" .. j)
+                                end
+                            end
+                        end
+                        return true
+                    end
+                })
+            end
+            
+            SettingPageDefine.ModMenu = {
+                Key = "ModMenu",
+                loc = "MOD MENU",
+                UIKey = "Setting_Page_Privacy", 
+                Category = {
+                    {
+                        Key = "ModMenu_Main",
+                        loc = "FEATURES", 
+                        Stack = ModMenuStack
+                    }
+                }
+            }
+            
+            table.insert(SettingCatalog, SettingPageDefine.ModMenu)
+        end
+
+        local UIManager = _G.UIManager
+        if UIManager and not UIManager._IsModMenuHooked then
+            local old_ShowUI = UIManager.ShowUI
+            UIManager.ShowUI = function(config, ...)
+                local args = {...}
+                if config and config.keyName and (string.find(string.lower(config.keyName), "setting_main") or string.find(string.lower(config.keyName), "setting")) then
+                    local catalog = args[1]
+                    if catalog and (type(catalog) == "table" or type(catalog) == "userdata") then
+                        local hasModMenu = false
+                        local newCatalog = {}
+                        for _, page in ipairs(catalog) do
+                            table.insert(newCatalog, page)
+                            if page.Key == "ModMenu" then
+                                hasModMenu = true
+                            end
+                        end
+                        
+                        if not hasModMenu then
+                            table.insert(newCatalog, SettingPageDefine.ModMenu)
+                            args[1] = newCatalog
+                        end
+                    end
+                end
+                local table_unpack = table.unpack or unpack
+                return old_ShowUI(config, table_unpack(args))
+            end
+            UIManager._IsModMenuHooked = true
+        end
+    end
+
     _G.InitializeAntiReport = function()
         pcall(function()
             local paths = {"GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem", "Client.Security.ClientReportPlayerSubsystem"}
@@ -2672,6 +3167,7 @@ pcall(function()
             _G.InitializeConnectionGuard()
             _G.InitializeSkinBypass()
             _G.InitializeReplayTelemetryBlocker()
+            _G.InitModMenuTab()
             _G.DisableHiggsBoson()
 
             pcall(function()
