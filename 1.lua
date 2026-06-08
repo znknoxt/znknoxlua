@@ -883,9 +883,8 @@ local function finalStart()
 end
 finalStart()
 
--- ==================== WALLHACK ====================
-local function ApplyWallHack(localPlayer, enemy, pc)
-    if not _G.CheatsEnabled then return end
+-- ==================== WALLHACK (GREEN + YELLOW) ====================
+local function ApplyVisualMods(localPlayer, enemy, pc, mWh, mWp)
     if not slua.isValid(enemy) then return end
     local meshes = {}
     pcall(function()
@@ -902,252 +901,130 @@ local function ApplyWallHack(localPlayer, enemy, pc)
             end
         end
     end)
-    pcall(function()
-        for _, comp in ipairs(meshes) do
-            if slua.isValid(comp) then
-                local ok, mat = pcall(function() return comp:GetMaterial(0) end)
-                if ok and slua.isValid(mat) then
-                    local ok2, base = pcall(function() return mat:GetBaseMaterial() end)
-                    if ok2 and slua.isValid(base) then
-                        base.bDisableDepthTest = true; base.BlendMode = 2
-                    end
-                end
-                comp.UseScopeDistanceCulling = false
-                comp.PrimitiveShadingStrategy = 1; comp.ShadingRate = 6
-            end
-        end
-        local isVisible = false
-        if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then
-            pcall(function() isVisible = pc:LineOfSightTo(enemy) end)
-        end
-        local finalColor = isVisible and {R=25,G=25,B=0,A=1} or {R=25,G=0,B=0,A=1}
-        local scale = {R=3,G=3,B=0,A=0}
-        enemy._WH_MIDs = enemy._WH_MIDs or {}
-        for _, comp in ipairs(meshes) do
-            if slua.isValid(comp) then
-                local ck = tostring(comp)
-                enemy._WH_MIDs[ck] = enemy._WH_MIDs[ck] or {}
-                for i = 0, 10 do
-                    local ok3, mi = pcall(function() return comp:GetMaterial(i) end)
-                    if not ok3 or not slua.isValid(mi) then break end
-                    local mid = enemy._WH_MIDs[ck][i]
-                    if not slua.isValid(mid) then
-                        local ok4, nm = pcall(function() return comp:CreateAndSetMaterialInstanceDynamic(i) end)
-                        if ok4 and slua.isValid(nm) then enemy._WH_MIDs[ck][i] = nm; mid = nm end
-                    end
-                    if slua.isValid(mid) then
-                        pcall(function()
-                            mid:SetVectorParameterValue("颜色", finalColor)
-                            mid:SetVectorParameterValue("Color", finalColor)
-                            mid:SetVectorParameterValue("BaseColor", finalColor)
-                            mid:SetVectorParameterValue("BodyColor", finalColor)
-                            mid:SetVectorParameterValue("DiffuseColor", finalColor)
-                            mid:SetVectorParameterValue("ParaScaleOffset", scale)
-                        end)
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- ==================== ESP ==================== 
-local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
-local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
-
-local cachedPawns     = {}
-local lastPawnRefresh = 0
-
-local function IsPawnAlive(p)
-    if not isValid(p) then return false end
-    if p.HealthStatus then return SecurityCommonUtils.IsHealthStatusAlive(p.HealthStatus) end
-    if p.IsAlive then return p:IsAlive() end
-    return p.GetHealth and (p:GetHealth() or 0) > 0 or false
-end
-
-local boneList = {"head","neck_01","spine_01","spine_02","spine_03","pelvis",
-    "upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r",
-    "calf_l","calf_r","foot_l","foot_r"}
-local function TextScale(distM)
-    local t = math.min(distM / 400, 1)
-    return 0.35 - t * 0.2
-end
-
-local function HPBar(pct)
-    local n = math.floor((pct * 4) + 0.5)
-    local s = ""
-    for i = 1, 4 do s = s .. (i <= n and "▁" or " ") end
-    return s
-end
-
-local function ESPTick()
-    if not _G.CheatsEnabled then return end
-    if _G._ESPTimerHandle and _G._ESPTimerChar and not isValid(_G._ESPTimerChar) then _G._ESPTimerHandle = nil; _G._ESPTimerChar = nil end
-    local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if not (isValid(uCon) and Game:IsClassOf(uCon, ASTExtraPlayerController)) then return end
-    local currentPawn = uCon:GetCurPawn()
-    if not isValid(currentPawn) then return end
-
-    local myTeamId = 0
-    pcall(function()
-        local char = uCon:GetPlayerCharacterSafety()
-        if isValid(char) and char.TeamID then myTeamId = char.TeamID
-        elseif currentPawn.TeamID then myTeamId = currentPawn.TeamID end
-    end)
-    local myPos = nil
-    pcall(function() myPos = currentPawn:K2_GetActorLocation() end)
-    if not myPos then return end
-    local myEyePos = myPos
-    pcall(function()
-        if currentPawn.GetHeadLocation then myEyePos = currentPawn:GetHeadLocation(false) or myPos end
-    end)
-    HUD = uCon:GetHUD()
-    local now      = os.clock()
-
-    if now - lastPawnRefresh > 1.0 then
-        lastPawnRefresh = now
-        cachedPawns = Game:GetAllPlayerPawns() or {}
-    end
-
-    local botCount = 0
-    local playerCount = 0
-
-    local totalAlive = 0
-    for _, p in pairs(cachedPawns) do
-        if isValid(p) and p ~= currentPawn and p.TeamID ~= myTeamId and IsPawnAlive(p) then
-            totalAlive = totalAlive + 1
-        end
-    end
-    local crowded = totalAlive > 20
-
-    for _, tPawn in pairs(cachedPawns) do
-        if isValid(tPawn) and tPawn ~= currentPawn and tPawn.TeamID ~= myTeamId then
-            if IsPawnAlive(tPawn) then
-                local enemyPos = tPawn:K2_GetActorLocation()
-                local dx = enemyPos.X - myPos.X
-                local dy = enemyPos.Y - myPos.Y
-                local dz = enemyPos.Z - myPos.Z
-                local dist = math.sqrt(dx*dx + dy*dy + dz*dz)
-
-                local isBot = false
-                pcall(function() isBot = Game:IsAI(tPawn) end)
-                if isBot then botCount = botCount + 1 else playerCount = playerCount + 1 end
-
-                if dist < 600000 and HUD then
-                    local name = tPawn.PlayerName or "UNKNOWN"
-                    local distM = dist / 100
-
-                    local hp = tPawn.Health
-                    local maxHp = tPawn.HealthMax
-                    local isKnock = false
-                    local hpPercent = 0
-                    if not hp or not maxHp or maxHp <= 0 then
-                        isKnock = true
-                    elseif hp <= 0 then
-                        isKnock = true
-                    else
-                        hpPercent = hp / maxHp
-                    end
-                    local hpColor = {R=0,G=255,B=0,A=255}
-                    if hpPercent < 0.3 then
-                        hpColor = {R=255,G=0,B=0,A=255}
-                    elseif hpPercent < 0.7 then
-                        hpColor = {R=255,G=255,B=0,A=255}
-                    end
-                    if isKnock then
-                        hpColor = {R=255,G=0,B=0,A=255}
-                    end
-
-                    local bones = {}
-                    local mesh = tPawn.Mesh
-                    if isValid(mesh) then
-                        for _, bn in ipairs(boneList) do
-                            bones[bn] = mesh:GetSocketLocation(bn)
+    local isEnabled = mWh or mWp
+    if isEnabled then
+        local depthTest = mWh
+        local blendMode = mWh and 2 or 1
+        pcall(function()
+            for _, comp in ipairs(meshes) do
+                if slua.isValid(comp) then
+                    local s, matInterface = pcall(function() return comp:GetMaterial(0) end)
+                    if s and slua.isValid(matInterface) then
+                        local s2, baseMat = pcall(function() return matInterface:GetBaseMaterial() end)
+                        if s2 and slua.isValid(baseMat) then
+                            if baseMat.bDisableDepthTest ~= depthTest then baseMat.bDisableDepthTest = depthTest end
+                            if baseMat.BlendMode ~= blendMode then baseMat.BlendMode = blendMode end
                         end
                     end
-                    local origin = enemyPos
-                    local oz = origin.Z
-                    local headPos = bones["head"]
-                    local footPos = bones["foot_l"]
-                    local footRPos = bones["foot_r"]
-                    local topZ = headPos and (headPos.Z - oz) or 90
-                    local botZ = footPos and math.min(footPos.Z, footRPos and footRPos.Z or footPos.Z) - oz or -85
-
-                    local headZ = headPos and (headPos.Z - oz) or 90
-                    local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
-                    local nameOffset = -80 - math.min(distM, 60) * 0.33 - math.max(0, distM - 60) * 0.1
-
-                    if crowded then
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-                    else
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        local headChar = distM <= 25 and "❄" or "●"
-                        if hz then HUD:AddDebugText(headChar, tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
-
-                        local hpText = isKnock and "DOWN" or HPBar(hpPercent)
-                        HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-
-                        local nameColor = {R=255,G=255,B=0,A=255}
-                        local targetPos = headPos or tPawn:K2_GetActorLocation()
-                        pcall(function()
-                            if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                nameColor = {R=255,G=255,B=0,A=255}
-                            else
-                                nameColor = {R=255,G=0,B=0,A=255}
-                            end
-                        end)
-
-                        HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
-
-                    end
-                    pcall(ApplyWallHack, currentPawn, tPawn, uCon)
                 end
             end
-        end
-    end
-
-    if not crowded and HUD and currentPawn then
-        HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("HACKERS NEVER DIE", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
+        end)
+        pcall(function()
+            for _, comp in ipairs(meshes) do
+                if slua.isValid(comp) then
+                    comp.UseScopeDistanceCulling = false 
+                    comp.PrimitiveShadingStrategy = 1; comp.ShadingRate = 6
+                end
+            end
+            local finalColor
+            if mWh then
+                local isVisible = false
+                if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then 
+                    pcall(function() isVisible = pc:LineOfSightTo(enemy) end) 
+                end
+                -- GREEN = visible, YELLOW = behind walls
+                local hiddenColor  = { R = 255.0, G = 255.0, B = 0.0,   A = 1.0, r = 255.0, g = 255.0, b = 0.0,   a = 1.0 }
+                local visibleColor = { R = 0.0,   G = 255.0, B = 0.0,   A = 1.0, r = 0.0,   g = 255.0, b = 0.0,   a = 1.0 }
+                finalColor = isVisible and visibleColor or hiddenColor
+            else
+                finalColor = { R = 50.0, G = 50.0, B = 50.0, A = 1.0, r = 50.0, g = 50.0, b = 50.0, a = 1.0 }
+            end
+            local scale = { R = 3.0,  G = 3.0,  B = 0.0,  A = 0.0, r = 3.0,  g = 3.0,  b = 0.0,  a = 0.0 }
+            enemy.WH_MIDs = enemy.WH_MIDs or {}
+            local stateChanged = (enemy.WH_LastColorR ~= finalColor.R) or (enemy.WH_LastBlendMode ~= blendMode)
+            for _, comp in ipairs(meshes) do
+                if slua.isValid(comp) then
+                    local compKey = tostring(comp)
+                    enemy.WH_MIDs[compKey] = enemy.WH_MIDs[compKey] or {}
+                    for i = 0, 10 do 
+                        local s, matInterface = pcall(function() return comp:GetMaterial(i) end)
+                        if not s or not slua.isValid(matInterface) then break end
+                        local isNewMID = false; local needCacheUpdate = false; local currentCached = enemy.WH_MIDs[compKey][i]
+                        if not slua.isValid(currentCached) then
+                            local s2, newMid = pcall(function() return comp:CreateAndSetMaterialInstanceDynamic(i) end)
+                            if s2 and slua.isValid(newMid) then enemy.WH_MIDs[compKey][i] = newMid; currentCached = newMid; isNewMID = true; needCacheUpdate = true end
+                        else
+                            if matInterface ~= currentCached then pcall(function() comp:SetMaterial(i, currentCached) end); needCacheUpdate = true end
+                        end
+                        if slua.isValid(currentCached) and (stateChanged or isNewMID or needCacheUpdate) then
+                            pcall(function()
+                                currentCached:SetVectorParameterValue("颜色", finalColor); currentCached:SetVectorParameterValue("Extra Light Color", finalColor)
+                                currentCached:SetVectorParameterValue("Para_Color", finalColor); currentCached:SetVectorParameterValue("Para_ColorTint", finalColor)
+                                currentCached:SetVectorParameterValue("Para_Color_1", finalColor); currentCached:SetVectorParameterValue("Tint", finalColor)
+                                currentCached:SetVectorParameterValue("Color", finalColor); currentCached:SetVectorParameterValue("BaseColor", finalColor)
+                                currentCached:SetVectorParameterValue("BodyColor", finalColor); currentCached:SetVectorParameterValue("MainColor", finalColor)
+                                currentCached:SetVectorParameterValue("DiffuseColor", finalColor); currentCached:SetVectorParameterValue("EmissiveColor", finalColor)
+                                currentCached:SetVectorParameterValue("ParaScaleOffset", scale)
+                            end)
+                        end
+                    end
+                end
+            end
+            if stateChanged then enemy.WH_LastColorR = finalColor.R; enemy.WH_LastBlendMode = blendMode end
+        end)
+    else
+        pcall(function()
+            for _, comp in ipairs(meshes) do
+                if slua.isValid(comp) then
+                    local s, matInterface = pcall(function() return comp:GetMaterial(0) end)
+                    if s and slua.isValid(matInterface) then
+                        local s2, baseMat = pcall(function() return matInterface:GetBaseMaterial() end)
+                        if s2 and slua.isValid(baseMat) then
+                            if baseMat.bDisableDepthTest ~= false then baseMat.bDisableDepthTest = false end
+                            if baseMat.BlendMode ~= 1 then baseMat.BlendMode = 1 end
+                        end
+                    end
+                end
+            end
+        end)
+        enemy.WH_LastColorR = nil; enemy.WH_LastBlendMode = nil; enemy.WH_MIDs = nil
     end
 end
 
-pcall(function()
-    if _G._ESPWatchdogHandle then pcall(function() Game:ClearTimer(_G._ESPWatchdogHandle) end); _G._ESPWatchdogHandle = nil end
-
-    local function StartESP(targetActor)
-        if not isValid(targetActor) then return end
-        cachedPawns = {}; lastPawnRefresh = 0
-        _G._ESPTimerChar = targetActor
-        _G._ESPTimerHandle = targetActor:AddGameTimer(0.15, true, function()
-            pcall(ESPTick)
-        end)
+function BRPlayerCharacterBase:SetMaterialRender(DisableDepth, BlendMode)
+    local success, err = pcall(function()
+        local player = GameplayData.GetPlayerCharacter()
+        if not slua.isValid(player) then
+            return
+        end
+        if player.TeamID == self.TeamID then
+            return
+        end
+        local mesh = self.Mesh
+        if not mesh then
+            return
+        end
+        local matInterface = mesh:GetMaterial(0)
+        if not matInterface then
+            return
+        end
+        local baseMat = matInterface:GetBaseMaterial()
+        if not baseMat then
+            return
+        end
+        baseMat.bDisableDepthTest = DisableDepth
+        baseMat.BlendMode = BlendMode
+    end)
+    if not success then
+        _G.WriteLog("SetMaterialRender ERROR: " .. tostring(err))
     end
+end
 
-    local function Watchdog()
-        pcall(function()
-            local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-            local curPawn = pc and pc:GetCurPawn()
-            if isValid(curPawn) and _G._ESPTimerChar ~= curPawn then
-                if _G._ESPTimerHandle and isValid(_G._ESPTimerChar) then
-                    pcall(function() _G._ESPTimerChar:RemoveGameTimer(_G._ESPTimerHandle) end)
-                end
-                _G._ESPTimerHandle = nil
-                StartESP(curPawn)
-            elseif not _G._ESPTimerHandle then
-                StartESP(curPawn)
-            end
-        end)
-    end
+function BRPlayerCharacterBase:ReceiveTick(DeltaTime)
+    -- GREEN when visible, YELLOW when behind walls (BlendMode 2 = see-through)
+    self:SetMaterialRender(true, 2)
+end
 
-    _G._ESPWatchdogHandle = Game:SetTimer(1.0, true, Watchdog)
-    Watchdog()
-end)
-
--- ==================== AIMBOT + NO RECOIL ====================
 _G.Enable165FPSLogic = function()
   pcall(function()
     local graphics = require("client.slua.logic.setting.logic_setting_graphics")
@@ -1544,3 +1421,5 @@ print("  ✓ ShootVerify + BulletHitInfo")
 print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
+print("  ✓ Wallhack: GREEN (Visible) / YELLOW (Behind Walls)")
+print("  ✓ SetMaterialRender + ReceiveTick Active")
