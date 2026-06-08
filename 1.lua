@@ -2469,7 +2469,10 @@ _G.Enable165FPSLogic = function()
       local orig = graphics.SetFPS
       function graphics:SetFPS(lvl)
         if orig then orig(self, lvl) end
-        if lvl == 8 then self:ExecuteCMD("t.MaxFPS", "165"); self:ExecuteCMD("r.FrameRateLimit", "165") end
+        if lvl == 8 and _G.Mod_FPS165_Enabled ~= false then 
+          self:ExecuteCMD("t.MaxFPS", "165")
+          self:ExecuteCMD("r.FrameRateLimit", "165")
+        end
       end
     end
     local fpsComp = require("client.slua.umg.NewSetting.GraphicsNew.Comps.GSC_FPS")
@@ -2544,7 +2547,7 @@ _G.EnableiPadViewUI = function()
   end)
 end
 
-_G.Enable165FPSLogic()
+if _G.Mod_FPS165_Enabled ~= false then _G.Enable165FPSLogic() end
 if _G.Mod_iPadView_Enabled ~= false then _G.EnableiPadViewUI() end
 
 local pc = slua_GameFrontendHUD:GetPlayerController()
