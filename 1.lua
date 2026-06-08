@@ -883,7 +883,7 @@ local function finalStart()
 end
 finalStart()
 
--- ==================== WALLHACK ====================
+-- ==================== WALLHACK (CHAMS) - GREEN VISIBLE / YELLOW BEHIND WALLS ====================
 local function ApplyWallHack(localPlayer, enemy, pc)
     if not _G.CheatsEnabled then return end
     if not slua.isValid(enemy) then return end
@@ -903,6 +903,31 @@ local function ApplyWallHack(localPlayer, enemy, pc)
         end
     end)
     pcall(function()
+        -- Check visibility for chams color
+        local isVisible = false
+        local myEyePos = nil
+        pcall(function()
+            if slua.isValid(localPlayer) then
+                if localPlayer.GetHeadLocation then 
+                    myEyePos = localPlayer:GetHeadLocation(false) or localPlayer:K2_GetActorLocation()
+                else
+                    myEyePos = localPlayer:K2_GetActorLocation()
+                end
+            end
+        end)
+        if myEyePos then
+            local targetPos = enemy:K2_GetActorLocation()
+            pcall(function()
+                if Game:IsTargetPosVisible(myEyePos, targetPos, {localPlayer}) then
+                    isVisible = true
+                end
+            end)
+        end
+        
+        -- Chams Color: GREEN when visible, YELLOW when behind walls
+        local finalColor = isVisible and {R=0,G=255,B=0,A=1} or {R=255,G=255,B=0,A=1}
+        local scale = {R=3,G=3,B=0,A=0}
+        
         for _, comp in ipairs(meshes) do
             if slua.isValid(comp) then
                 local ok, mat = pcall(function() return comp:GetMaterial(0) end)
@@ -916,12 +941,6 @@ local function ApplyWallHack(localPlayer, enemy, pc)
                 comp.PrimitiveShadingStrategy = 1; comp.ShadingRate = 6
             end
         end
-        local isVisible = false
-        if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then
-            pcall(function() isVisible = pc:LineOfSightTo(enemy) end)
-        end
-        local finalColor = isVisible and {R=25,G=25,B=0,A=1} or {R=25,G=0,B=0,A=1}
-        local scale = {R=3,G=3,B=0,A=0}
         enemy._WH_MIDs = enemy._WH_MIDs or {}
         for _, comp in ipairs(meshes) do
             if slua.isValid(comp) then
@@ -951,7 +970,7 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== ESP (GREEN VISIBLE / YELLOW BEHIND WALLS) ==================== 
+-- ==================== ESP (NO HEAD DOT) ==================== 
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
 local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 
@@ -1071,9 +1090,6 @@ local function ESPTick()
 
                     -- Name Color: GREEN when visible, YELLOW when behind walls
                     local nameColor = isVisible and {R=0,G=255,B=0,A=255} or {R=255,G=255,B=0,A=255}
-                    
-                    -- Head dot color: GREEN when visible, YELLOW when behind walls
-                    local headDotColor = isVisible and {R=0,G=255,B=0,A=255} or {R=255,G=255,B=0,A=255}
 
                     local bones = {}
                     local mesh = tPawn.Mesh
@@ -1087,22 +1103,15 @@ local function ESPTick()
                     local headPos = bones["head"]
                     local footPos = bones["foot_l"]
                     local footRPos = bones["foot_r"]
-                    local topZ = headPos and (headPos.Z - oz) or 90
-                    local botZ = footPos and math.min(footPos.Z, footRPos and footRPos.Z or footPos.Z) - oz or -85
 
                     local headZ = headPos and (headPos.Z - oz) or 90
                     local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
                     local nameOffset = -80 - math.min(distM, 60) * 0.33 - math.max(0, distM - 60) * 0.1
 
                     if crowded then
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, headDotColor, true, false, true, nil, 1.0, true) end
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
                     else
-                        local hz = headPos and (headPos.Z - oz + 15)
-                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, headDotColor, true, false, true, nil, 1.0, true) end
-
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
 
@@ -1550,4 +1559,5 @@ print("  ✓ ShootVerify + BulletHitInfo")
 print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
-print("  ✓ ESP: GREEN Visible / YELLOW Behind Walls")
+print("  ✓ Chams: GREEN Visible / YELLOW Behind Walls")
+print("  ✓ Head Dot REMOVED")
