@@ -24,12 +24,51 @@ end
 local ok_gd, GameplayData = pcall(require, "GameLua.GameCore.Data.GameplayData")
 if not ok_gd then GameplayData = nil end
 
--- ==================== COMPLETE BYPASS ====================
+-- ============================================================================
+-- GHOST PROTOCOL CORE UTILITIES
+-- ============================================================================
+local GhostCore = {}
+GhostCore.Version = "5.0-GHOST"
+GhostCore.Active = false
 
--- 1. SLUA BYPASS
-pcall(function()
+local function DecodeStr(str)
+    return string.gsub(str, "_", "")
+end
+
+local function SafeExec(func, errorMsg)
+    local success, result = pcall(func)
+    if not success then return nil end
+    return result
+end
+
+local function RetTrueMimic()
+    if math.random(1, 100) > 5 then return true end
+    return false
+end
+
+local function RetFalseMimic()
+    if math.random(1, 100) > 5 then return false end
+    return true
+end
+
+local function SafeWrap(originalFunc, mockFunc, mimicChance)
+    if type(originalFunc) ~= "function" then return mockFunc end
+    return function(...)
+        if mimicChance and mimicChance > 0 and math.random(1, 100) <= mimicChance then
+            return originalFunc(...)
+        end
+        return mockFunc(...)
+    end
+end
+
+print("[GHOST PROTOCOL] Initializing Core...")
+
+-- ============================================================================
+-- MODULE 1: SLUA & INTEGRITY BYPASS
+-- ============================================================================
+SafeExec(function()
     if slua and slua.getSignature then
-        slua.getSignature = function() return 0xDEADBEEF end
+        slua.getSignature = function() return math.random(0xDE000000, 0xFFFFFFFF) end
     end
     local loader = package.loaded["slua.loader"] or rawget(_G, "slua_loader")
     if loader then
@@ -42,8 +81,10 @@ pcall(function()
     end
 end)
 
--- 2. MD5 & PAK BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 2: MD5 & PAK BYPASS
+-- ============================================================================
+SafeExec(function()
     local console = import("KismetSystemLibrary")
     if console then
         console.ExecuteConsoleCommand(nil, "pak.DisablePakSignatureCheck 1")
@@ -56,9 +97,7 @@ pcall(function()
         CreativeModeBlueprintLibrary.MD5HashFile = function() return "BYPASSED_MD5_HASH" end
         CreativeModeBlueprintLibrary.GetContentDiffData = function() return true, "BYPASSED" end
     end
-    if _G.MD5Hash then
-        _G.MD5Hash = function() return "00000000000000000000000000000000" end
-    end
+    if _G.MD5Hash then _G.MD5Hash = function() return "00000000000000000000000000000000" end end
     local STExtraBlueprintFunctionLibrary = import("STExtraBlueprintFunctionLibrary")
     if STExtraBlueprintFunctionLibrary then
         if STExtraBlueprintFunctionLibrary.CheckMD5 then STExtraBlueprintFunctionLibrary.CheckMD5 = function() return true end end
@@ -66,16 +105,18 @@ pcall(function()
     end
 end)
 
--- 3. MAIN BYPASS INIT
-pcall(function()
+-- ============================================================================
+-- MODULE 3: MAIN BYPASS INIT
+-- ============================================================================
+SafeExec(function()
     local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
     if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
     if Msg and Msg.Show then
-        Msg.Show(4, "VIP MOD", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
+        Msg.Show(4, "GHOST PROTOCOL", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
     end
 end)
 
-pcall(function()
+SafeExec(function()
     local stExtra = import("STExtraBlueprintFunctionLibrary")
     if stExtra and stExtra.IsDevelopment then stExtra.IsDevelopment = nop end
     if Client then Client.IsDevelopment = nop; Client.IsShipping = retFalse end
@@ -146,8 +187,10 @@ pcall(function()
     end
 end)
 
--- 4. HIGGS BOSON BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 4: HIGGS BOSON BYPASS
+-- ============================================================================
+SafeExec(function()
     local Higgs = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
     if Higgs then
         local methods = {
@@ -177,8 +220,10 @@ pcall(function()
     end
 end)
 
--- 5. CORONA LAB BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 5: CORONA LAB BYPASS
+-- ============================================================================
+SafeExec(function()
     if _G.CoronaLab then
         _G.CoronaLab.ReportData = nop
         _G.CoronaLab.SendData = nop
@@ -195,8 +240,10 @@ pcall(function()
     end
 end)
 
--- 6. PLAYER SECURITY INFO BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 6: PLAYER SECURITY INFO BYPASS
+-- ============================================================================
+SafeExec(function()
     if _G.PlayerSecurityInfo then
         _G.PlayerSecurityInfo.ReportCheat = nop
         _G.PlayerSecurityInfo.ReportSuspicious = nop
@@ -211,8 +258,10 @@ pcall(function()
     end
 end)
 
--- 7. CLIENT CIRCLE FLOW BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 7: CLIENT CIRCLE FLOW BYPASS
+-- ============================================================================
+SafeExec(function()
     local CircleFlow = safe_require("GameLua.Mod.BaseMod.Client.Security.ClientCircleFlowSubsystem")
     if CircleFlow then
         CircleFlow.ReportCircleFlow = nop
@@ -225,8 +274,10 @@ pcall(function()
     if _G.IsEnableReportMrpcsFlow then _G.IsEnableReportMrpcsFlow = retFalse end
 end)
 
--- 8. MODIFIER EXCEPTION BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 8: MODIFIER EXCEPTION BYPASS
+-- ============================================================================
+SafeExec(function()
     if _G.bReportedModifierException then _G.bReportedModifierException = false end
     local ModifierSubsystem = safe_require("GameLua.Mod.BaseMod.Common.Security.ModifierExceptionSubsystem")
     if ModifierSubsystem then
@@ -236,8 +287,10 @@ pcall(function()
     end
 end)
 
--- 9. SIMULATE CHARACTER LOCATION BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 9: SIMULATE CHARACTER LOCATION BYPASS
+-- ============================================================================
+SafeExec(function()
     local SimulateSubsystem = safe_require("GameLua.Mod.BaseMod.Gameplay.Simulate.SimulateCharacterSubsystem")
     if SimulateSubsystem then
         SimulateSubsystem.ReportLocation = nop
@@ -245,8 +298,10 @@ pcall(function()
     end
 end)
 
--- 10. SHOOT VERIFICATION BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 10: SHOOT VERIFICATION BYPASS
+-- ============================================================================
+SafeExec(function()
     local ShootVerify = safe_require("GameLua.Dev.Subsystem.ShootVerifySubSystemClient")
     if ShootVerify then
         ShootVerify.OnShootVerifyFailed = nop
@@ -261,8 +316,10 @@ pcall(function()
     end
 end)
 
--- 11. BAN LOGIC BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 11: BAN LOGIC BYPASS
+-- ============================================================================
+SafeExec(function()
     local BanLogic = package.loaded["client.slua.logic.ban.ClientBanLogic"]
     if BanLogic then
         BanLogic.OnSyncBanInfo = nop
@@ -317,8 +374,10 @@ pcall(function()
     if ComplianceUtil then ComplianceUtil.CheckCompliance = nop end
 end)
 
--- 12. REPORT SUBSYSTEM BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 12: REPORT SUBSYSTEM BYPASS
+-- ============================================================================
+SafeExec(function()
     local clientReport = package.loaded["GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem"]
     if clientReport then
         local funcs = {"OnInit","_OnPlayerKilledOtherPlayer","_RecordFatalDamager","SendPacket","ReportSuspiciousPlayer","SubmitReport","_OnBattleResult","_RecordTeammatePlayerInfo","_OnDeathReplayDataWhenFatalDamaged","_RecordMurdererFromDeathReplayData"}
@@ -376,8 +435,10 @@ pcall(function()
     end
 end)
 
--- 13. TLOG BYPASS
-pcall(function()
+-- ============================================================================
+-- MODULE 13: TLOG BYPASS
+-- ============================================================================
+SafeExec(function()
     local tlogModules = {
         "client.network.Protocol.ClientTlogHandler",
         "client.network.Protocol.BattleReportHandler",
@@ -429,8 +490,10 @@ pcall(function()
     if PufferTlog then PufferTlog.report_download_tlog = nop end
 end)
 
--- 14. NETWORK PACKET BLOCK
-pcall(function()
+-- ============================================================================
+-- MODULE 14: NETWORK PACKET BLOCK
+-- ============================================================================
+SafeExec(function()
     local ClientError = package.loaded["client.network.Protocol.ClientErrorReportHandler"]
     if ClientError then
         ClientError.send_client_error_report = nop
@@ -494,8 +557,10 @@ pcall(function()
     end
 end)
 
--- 15. ADDITIONAL BYPASSES
-pcall(function()
+-- ============================================================================
+-- MODULE 15: ADDITIONAL BYPASSES
+-- ============================================================================
+SafeExec(function()
     local EmuHandler = package.loaded["client.network.Protocol.EmulatorHandler"]
     if EmuHandler then EmuHandler.send_emulator_info = nop end
     local EmuScanner = package.loaded["client.logic.login.emulator_scanner"]
@@ -531,8 +596,10 @@ pcall(function()
     if HighlightDS then HighlightDS.CheckFuncUpgradedWeaponKill = nop end
 end)
 
--- 16. MORE BYPASSES
-pcall(function()
+-- ============================================================================
+-- MODULE 16: MISC BYPASSES
+-- ============================================================================
+SafeExec(function()
     local ProfileReport = package.loaded["client.logic.data.profile_report_cfg"]
     if ProfileReport then ProfileReport.SendReport = nop end
     local VoiceReport = package.loaded["client.slua.logic.chat_voice.logic_chat_voice_report"]
@@ -572,98 +639,44 @@ pcall(function()
     end
 end)
 
--- 17. MISC BYPASSES
-pcall(function()
-    local znq6Revive = safe_require("GameLua.Mod.TDEvent.ZNQ6th.DS.ZNQ6thDSReviveSubsystem")
-    if znq6Revive then znq6Revive.HaveNewItemForRevive = nop end
-    local znq7Revive = safe_require("GameLua.Mod.TDEvent.ZNQ7th.DS.ZNQ7DSReviveSubsystem")
-    if znq7Revive then znq7Revive.HaveChanceRevival = nop end
-    local DataLayer = safe_require("GameLua.Mod.BaseMod.Common.Subsystem.DataLayerSubsystem")
-    if DataLayer then
-        local orig = DataLayer.OnSpectatorReplayChanged
-        if orig then
-            DataLayer.OnSpectatorReplayChanged = function(dlSelf)
-                _G.IsBeingWatched = true
-                orig(dlSelf)
-            end
+-- ============================================================================
+-- MODULE 17: HEARTBEAT & SWIFT HAWK BYPASS
+-- ============================================================================
+SafeExec(function()
+    local heartbeatFuncs = {"Heartbeat", "SendHeartbeat", "ClientHeartbeat", "ServerHeartbeat"}
+    for _, func in ipairs(heartbeatFuncs) do
+        if _G[func] then _G[func] = nop end
+        if _G.GameplayCallbacks and _G.GameplayCallbacks[func] then
+            _G.GameplayCallbacks[func] = nop
         end
     end
-    local DSActive = safe_require("GameLua.Mod.PlanBT.Gameplay.Subsystem.DSActiveSubsystem")
-    if DSActive then
-        DSActive.DelayKickOutPlayer = nop
-        DSActive.ActiveKickNotify = nop
-    end
-    local CreativeDev = safe_require("GameLua.Mod.CreativeBase.Gameplay.Subsystem.CreativeDevDebugSubsystem")
-    if CreativeDev then CreativeDev.IsDebugPanelEnalbedCli = nop end
-    local CreativeDeath = safe_require("GameLua.Mod.CreativeBase.Gameplay.Subsystem.CreativeModeDeathRecordSubsystem")
-    if CreativeDeath then CreativeDeath.OnPlayerKilled = nop end
-    if _G.ClientReplayDataReporter then
-        _G.ClientReplayDataReporter.ReportIntArrayData = nop
-        _G.ClientReplayDataReporter.ReportFloatArrayData = nop
-    end
-    local SpectateReplay = safe_require("GameLua.Mod.BaseMod.Common.Subsystem.SpectateAndReplaySubsystem")
-    if SpectateReplay then
-        SpectateReplay.RequestGotoSpectatingImp = nop
-        SpectateReplay.RequestGotoSpectating = nop
-    end
-    local AIReplay = safe_require("GameLua.ExtraModule.MLAI.Client.AIReplaySubsystem")
-    if AIReplay then
-        AIReplay.ReportAllPlayerInfo = nop
-        AIReplay.ReportFrameData = nop
-        AIReplay.ReportPlayerInput = nop
-        if AIReplay.uCompletePlayBack then
-            AIReplay.uCompletePlayBack.AddRecordMLAIInfo = nop
-            AIReplay.uCompletePlayBack.StopRecording = nop
+    
+    local swiftFuncs = {"SwiftHawk", "ClientSwiftHawk", "ClientSwiftHawkWithParams", "SendSwiftHawkData"}
+    for _, func in ipairs(swiftFuncs) do
+        if _G[func] then _G[func] = nop end
+        if _G.GameplayCallbacks and _G.GameplayCallbacks[func] then
+            _G.GameplayCallbacks[func] = nop
         end
-    end
-    local AITracking = safe_require("GameLua.Mod.BaseMod.GamePlay.AI.AITrackingLogSubsystem")
-    if AITracking then
-        AITracking.RealLogoutTimer = nop
-        AITracking.LogQueue = {}
-        AITracking.AddToLogQue = nop
-        AITracking.DoPrint = nop
-        AITracking.OnAIPawnDied = nop
-        AITracking.OnAIPawnReceiveDamage = nop
-        AITracking.OnAIPawnEnemyChange = nop
-    end
-    local AFKReport = safe_require("GameLua.Mod.BaseMod.DS.Security.AFKReportorSubsystem")
-    if AFKReport then
-        AFKReport.HandleEnterFighting = nop
-        AFKReport.InitializePlayerInputInfo = nop
-        AFKReport.AddOneAFKInfo = nop
-        AFKReport.SetPlayerAFKState = nop
-        AFKReport.ResetPlayerInputInfo = nop
-        AFKReport.PlayerHaveAction = nop
-    end
-    local TDMAFK = safe_require("GameLua.Mod.TDM.Gameplay.Subsystem.TDMAFKReportorSubsystem")
-    if TDMAFK then
-        TDMAFK.SendAFKTips = nop
-        TDMAFK.OnHandleLostConnection = nop
-    end
-    local DataMgr = package.loaded["client.slua.logic.data.data_mgr"]
-    if DataMgr then DataMgr.GetWeaponSkinSoundVolumeInfoByGroup = retZero end
-    local CreditLogic = safe_require("GameLua.Mod.BaseMod.Client.ClientInGameCreditLogic")
-    if CreditLogic then
-        CreditLogic._SendUserReaction2ExitTeamBeforeBoardingReturnLobbyNotice = nop
-        CreditLogic.ShowReturnLobbyIfFirstExitTeamBeforeBoarding = retFalse
-        CreditLogic.OnReceiveCreditScoreChange = nop
-        CreditLogic._IsFirstExitTeamBeforeBoardingReturnLobbyNoticeEnabled = retFalse
-        CreditLogic.SetFirstExitTeamBeforeBoardingReturnLobbyNoticeEnabled = nop
     end
 end)
 
--- 18. GLOBAL FUNCTIONS KILL
+-- ============================================================================
+-- MODULE 18: GLOBAL FUNCTIONS KILL
+-- ============================================================================
 local globalFuncs = {
     "ReportTLogEvent","SendTlog","SendClientStats","ReportHitFlow","ReportAvatarException",
     "SendComplaintReq","SubmitReport","ReportSuspiciousPlayer","SendPacket","OnSyncBanInfo",
     "OnVoiceBanNotify","SendSecTLog","MarkSuspiciousPlayer","ReportPlayerBehaviorData",
-    "CheckCompliance","ReportIllegalProgram","UploadVoiceLog"
+    "CheckCompliance","ReportIllegalProgram","UploadVoiceLog","Heartbeat","SendHeartbeat",
+    "ClientHeartbeat","SwiftHawk","ClientSwiftHawk","ClientSwiftHawkWithParams"
 }
 for _, fn in ipairs(globalFuncs) do
     if type(_G[fn]) == "function" then _G[fn] = nop end
 end
 
--- 19. NETWORK FILTER
+-- ============================================================================
+-- MODULE 19: NETWORK FILTER
+-- ============================================================================
 local BLACKLIST_HOSTS = {
     "tss.tencent","syzsdk","gcloud.qq","reportlog","tdos","logupload","feedback.wh","crash2",
     "privacy.qq","privacy.tencent","oth.eve","mdt.qq","act.tencentyun","analytics","report.qq",
@@ -692,7 +705,7 @@ local function isBlacklisted(str)
     return false
 end
 
-pcall(function()
+SafeExec(function()
     if _G.HttpRequest then
         local orig = _G.HttpRequest
         _G.HttpRequest = function(url, ...) if isBlacklisted(url) then return nil end return orig(url, ...) end
@@ -703,8 +716,10 @@ pcall(function()
     end
 end)
 
--- 20. NETWORK PACKET BLOCK (SECONDARY)
-pcall(function()
+-- ============================================================================
+-- MODULE 20: NETWORK PACKET BLOCK (SECONDARY)
+-- ============================================================================
+SafeExec(function()
     if NetUtil and NetUtil.SendPacket then
         local originalSend = NetUtil.SendPacket
         local blockedPackets = {
@@ -725,6 +740,8 @@ pcall(function()
             ["RPC_Server_ReportSimulateCharacterLocation"]=1,["ReportSimulateCharacterLocation"]=1,
             ["RPC_Client_ShootVertifyRes"]=1,["BulletHitInfoUploadData"]=1,
             ["ShootVerifyFailed"]=1,["report_unrealnet_exception"]=1,["tss_sdk_report"]=1,
+            ["Heartbeat"]=1,["ClientHeartbeat"]=1,["ServerHeartbeat"]=1,
+            ["SwiftHawk"]=1,["ClientSwiftHawk"]=1,["ClientSwiftHawkWithParams"]=1
         }
         NetUtil.SendPacket = function(packetName, ...)
             if blockedPackets[packetName] then return nil end
@@ -734,9 +751,11 @@ pcall(function()
     end
 end)
 
--- 21. KILL ALL SECURITY SUBSYSTEMS
+-- ============================================================================
+-- MODULE 21: KILL ALL SECURITY SUBSYSTEMS
+-- ============================================================================
 local function KillAllSecuritySubsystems()
-    pcall(function()
+    SafeExec(function()
         local subMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
         if not subMgr then return end
         local subsystemsToKill = {
@@ -746,7 +765,8 @@ local function KillAllSecuritySubsystems()
             "ClientHawkEyePatrolSubsystem","DSHawkEyePatrolSubsystem","ClientDataStatistcsSubsystem",
             "AFKReportorSubsystem","BehaviorScoreSubsystem","FileCheckSubsystem",
             "MemoryCheckSubsystem","SpeedCheckSubsystem","WallCheckSubsystem",
-            "AvatarExceptionSubsystem","GameReportSubsystem","RescueBtnReplayTraceSubsystem"
+            "AvatarExceptionSubsystem","GameReportSubsystem","RescueBtnReplayTraceSubsystem",
+            "HeartbeatSubsystem","SwiftHawkSubsystem"
         }
         for _, name in ipairs(subsystemsToKill) do
             local sub = subMgr:Get(name)
@@ -756,18 +776,22 @@ local function KillAllSecuritySubsystems()
                         pcall(function() sub[k] = nop end)
                     end
                 end
+                if sub.timer then pcall(function() sub:RemoveGameTimer(sub.timer) end) end
+                if sub.heartbeatTimer then pcall(function() sub:RemoveGameTimer(sub.heartbeatTimer) end) end
             end
         end
     end)
 end
 
--- 22. HIGGS BOSON PER PLAYER
+-- ============================================================================
+-- MODULE 22: HIGGS BOSON PER PLAYER
+-- ============================================================================
 local higgs_bypass_attempts = 0
 local MAX_HIGGS_BYPASS_ATTEMPTS = 60
 local function bypass_higgs_boson_perplayer(player)
     if not player or not isValid(player) then return end
     if higgs_bypass_attempts >= MAX_HIGGS_BYPASS_ATTEMPTS then return end
-    pcall(function()
+    SafeExec(function()
         local Higgs = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
         if Higgs then
             Higgs.ControlMHActive = nop
@@ -799,15 +823,18 @@ local function hookPerPlayerHiggs()
     end
 end
 
--- 23. PERSISTENT TIMER
+-- ============================================================================
+-- MODULE 23: PERSISTENT TIMER
+-- ============================================================================
 local function huntAndKillAll()
-    pcall(function()
+    SafeExec(function()
         local subNames = {
             "ClientHawkEyePatrolSubsystem","DSHawkEyePatrolSubsystem","ClientReportPlayerSubsystem",
             "DSReportPlayerSubsystem","ClientGlueHiaSystem","ClientDataStatistcsSubsystem",
             "ICTLogSubsystem","DSFightTLogSubsystem","DSSecurityTLogSubsystem","AFKReportorSubsystem",
             "BehaviorScoreSubsystem","CoronaLabSubsystem","PlayerSecurityInfoSubsystem",
-            "ClientCircleFlowSubsystem","ModifierExceptionSubsystem","SimulateCharacterSubsystem"
+            "ClientCircleFlowSubsystem","ModifierExceptionSubsystem","SimulateCharacterSubsystem",
+            "HeartbeatSubsystem","SwiftHawkSubsystem"
         }
         local subMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
         if subMgr and subMgr.Get then
@@ -824,7 +851,7 @@ local function huntAndKillAll()
         end
     end)
     KillAllSecuritySubsystems()
-    pcall(function()
+    SafeExec(function()
         local Higgs = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
         if Higgs then
             local methods = {"ControlMHActive","Tick","OnTick","MHActiveLogic","TriggerAvatarCheck","StartAvatarCheck","ReportItemID","ReceiveAnyDamage","OnWeaponHitRecord","ShowSecurityAlert","ServerReportAvatar","ClientReportNetAvatar","SendHisarData","ValidateSecurityData"}
@@ -851,7 +878,7 @@ if _G._centerTextTimer then
 end
 
 local function showCenter()
-    pcall(function()
+    SafeExec(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not isValid(pc) then return end
         local pawn = pc:GetCurPawn()
@@ -883,12 +910,14 @@ local function finalStart()
 end
 finalStart()
 
--- ==================== WALLHACK (CHAMS) - GREEN VISIBLE / YELLOW BEHIND WALLS ====================
+-- ============================================================================
+-- MODULE 24: WALLHACK (CHAMS) - GREEN VISIBLE / YELLOW BEHIND WALLS
+-- ============================================================================
 local function ApplyWallHack(localPlayer, enemy, pc)
     if not _G.CheatsEnabled then return end
     if not slua.isValid(enemy) then return end
     local meshes = {}
-    pcall(function()
+    SafeExec(function()
         if slua.isValid(enemy.Mesh) then table.insert(meshes, enemy.Mesh) end
         local SkelClass = import("SkeletalMeshComponent")
         if SkelClass then
@@ -902,11 +931,10 @@ local function ApplyWallHack(localPlayer, enemy, pc)
             end
         end
     end)
-    pcall(function()
-        -- Check visibility for chams color
+    SafeExec(function()
         local isVisible = false
         local myEyePos = nil
-        pcall(function()
+        SafeExec(function()
             if slua.isValid(localPlayer) then
                 if localPlayer.GetHeadLocation then 
                     myEyePos = localPlayer:GetHeadLocation(false) or localPlayer:K2_GetActorLocation()
@@ -917,14 +945,13 @@ local function ApplyWallHack(localPlayer, enemy, pc)
         end)
         if myEyePos then
             local targetPos = enemy:K2_GetActorLocation()
-            pcall(function()
+            SafeExec(function()
                 if Game:IsTargetPosVisible(myEyePos, targetPos, {localPlayer}) then
                     isVisible = true
                 end
             end)
         end
         
-        -- Chams Color: GREEN when visible, YELLOW when behind walls
         local finalColor = isVisible and {R=0,G=255,B=0,A=1} or {R=255,G=255,B=0,A=1}
         local scale = {R=3,G=3,B=0,A=0}
         
@@ -970,11 +997,13 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== ESP (ONLY HP BAR, NO NAMES, NO HEAD DOT, NO COUNTER) ==================== 
+-- ============================================================================
+-- MODULE 25: ESP (ONLY HP BAR, NO NAMES, NO HEAD DOT, NO COUNTER)
+-- ============================================================================
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
 local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 
-local cachedPawns     = {}
+local cachedPawns = {}
 local lastPawnRefresh = 0
 
 local function IsPawnAlive(p)
@@ -987,6 +1016,7 @@ end
 local boneList = {"head","neck_01","spine_01","spine_02","spine_03","pelvis",
     "upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r",
     "calf_l","calf_r","foot_l","foot_r"}
+
 local function TextScale(distM)
     local t = math.min(distM / 400, 1)
     return 0.35 - t * 0.2
@@ -1008,20 +1038,20 @@ local function ESPTick()
     if not isValid(currentPawn) then return end
 
     local myTeamId = 0
-    pcall(function()
+    SafeExec(function()
         local char = uCon:GetPlayerCharacterSafety()
         if isValid(char) and char.TeamID then myTeamId = char.TeamID
         elseif currentPawn.TeamID then myTeamId = currentPawn.TeamID end
     end)
     local myPos = nil
-    pcall(function() myPos = currentPawn:K2_GetActorLocation() end)
+    SafeExec(function() myPos = currentPawn:K2_GetActorLocation() end)
     if not myPos then return end
     local myEyePos = myPos
-    pcall(function()
+    SafeExec(function()
         if currentPawn.GetHeadLocation then myEyePos = currentPawn:GetHeadLocation(false) or myPos end
     end)
     HUD = uCon:GetHUD()
-    local now      = os.clock()
+    local now = os.clock()
 
     if now - lastPawnRefresh > 1.0 then
         lastPawnRefresh = now
@@ -1052,7 +1082,6 @@ local function ESPTick()
                         hpPercent = hp / maxHp
                     end
 
-                    -- HP Color
                     local hpColor = {R=0,G=255,B=0,A=255}
                     if hpPercent < 0.3 then
                         hpColor = {R=255,G=0,B=0,A=255}
@@ -1074,7 +1103,6 @@ local function ESPTick()
                     local headZ = headPos and (headPos.Z - enemyPos.Z) or 90
                     local hpOffset = headZ + 70 + math.min(distM, 60) * 3 + math.max(0, distM - 60) * 0.5
 
-                    -- ONLY HP BAR - No names, no head dot, no counter
                     local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                     HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
 
@@ -1085,7 +1113,7 @@ local function ESPTick()
     end
 end
 
-pcall(function()
+SafeExec(function()
     if _G._ESPWatchdogHandle then pcall(function() Game:ClearTimer(_G._ESPWatchdogHandle) end); _G._ESPWatchdogHandle = nil end
 
     local function StartESP(targetActor)
@@ -1098,7 +1126,7 @@ pcall(function()
     end
 
     local function Watchdog()
-        pcall(function()
+        SafeExec(function()
             local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
             local curPawn = pc and pc:GetCurPawn()
             if isValid(curPawn) and _G._ESPTimerChar ~= curPawn then
@@ -1117,9 +1145,11 @@ pcall(function()
     Watchdog()
 end)
 
--- ==================== AIMBOT + NO RECOIL ====================
+-- ============================================================================
+-- MODULE 26: FPS + CAMERA TWEAKS
+-- ============================================================================
 _G.Enable165FPSLogic = function()
-  pcall(function()
+  SafeExec(function()
     local graphics = require("client.slua.logic.setting.logic_setting_graphics")
     if graphics then
       local orig = graphics.SetFPS
@@ -1189,7 +1219,7 @@ _G.Enable165FPSLogic = function()
 end
 
 _G.EnableiPadViewUI = function()
-  pcall(function()
+  SafeExec(function()
     local sc = require("client.logic.setting.setting_config")
     if sc then
       if sc.TpViewValue then sc.TpViewValue.max = 140 end
@@ -1208,7 +1238,7 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
   _G._FeaturesTimerPC = pc
   local SubsystemMgr = nil
   pc:AddGameTimer(0.1, true, function()
-    pcall(function()
+    SafeExec(function()
       if not _G.CheatsEnabled then return end
       local pc = slua_GameFrontendHUD:GetPlayerController()
       if not isValid(pc) then return end
@@ -1246,96 +1276,15 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
         gi:ExecuteCMD("grass.DensityScale", "0")
         gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
       end
-
-      pcall(function()
-        local allChars = Game:GetAllPlayerPawns() or {}
-        for _, c in pairs(allChars) do
-          if isValid(c) and c ~= char and c.TeamID ~= char.TeamID then
-            local mesh = c.Mesh
-            if isValid(mesh) then
-              local physAsset = mesh.PhysicsAssetOverride
-              if not isValid(physAsset) and isValid(mesh.SkeletalMesh) then
-                physAsset = mesh.SkeletalMesh.PhysicsAsset
-              end
-              if isValid(physAsset) and physAsset.SkeletalBodySetups then
-                _G._MBones = _G._MBones or {}
-                local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
-                if not _G._MBones[assetName] then
-                  local mb = {
-                    ["head"]=50, ["neck_01"]=40, ["pelvis"]=40,
-                    ["spine_01"]=40, ["spine_02"]=40, ["spine_03"]=40,
-                    ["upperarm_l"]=30, ["upperarm_r"]=30,
-                    ["lowerarm_l"]=25, ["lowerarm_r"]=25,
-                    ["hand_l"]=20, ["hand_r"]=20,
-                    ["thigh_l"]=30, ["thigh_r"]=30,
-                    ["calf_l"]=25, ["calf_r"]=25,
-                    ["foot_l"]=20, ["foot_r"]=20,
-                  }
-                  local setups = physAsset.SkeletalBodySetups
-                  for i = 1, 80 do
-                    local bs = nil
-                    pcall(function() bs = (type(setups.Get)=="function") and setups:Get(i-1) or setups[i] end)
-                    if not bs or not isValid(bs) then break end
-                    local bn = tostring(bs.BoneName):lower()
-                    local pct = nil
-                    for pat, val in pairs(mb) do
-                      if string.find(bn, pat) then pct = val; break end
-                    end
-                    if pct then
-                      local sc = 1.0 + pct/100.0
-                      local ag = bs.AggGeom
-                      pcall(function()
-                        local bx = (ag and ag.BoxElems) or bs.BoxElems
-                        if bx then
-                          local b = (type(bx.Get)=="function") and bx:Get(0) or bx[1]
-                          if b then
-                            b.X = (b.X or 30)*sc; b.Y = (b.Y or 30)*sc; b.Z = (b.Z or 60)*sc
-                            if type(bx.Set)=="function" then bx:Set(0,b) else bx[1]=b end
-                            if ag then bs.AggGeom=ag else bs.BoxElems=bx end
-                          end
-                        end
-                      end)
-                      pcall(function()
-                        local sp = (ag and ag.SphylElems) or bs.SphylElems
-                        if sp then
-                          local s = (type(sp.Get)=="function") and sp:Get(0) or sp[1]
-                          if s then
-                            if s.Radius then s.Radius=s.Radius*sc end
-                            if s.Length then s.Length=s.Length*sc end
-                            if type(sp.Set)=="function" then sp:Set(0,s) else sp[1]=s end
-                            if ag then bs.AggGeom=ag else bs.SphylElems=sp end
-                          end
-                        end
-                      end)
-                      pcall(function()
-                        local sr = (ag and ag.SphereElems) or bs.SphereElems
-                        if sr then
-                          local r = (type(sr.Get)=="function") and sr:Get(0) or sr[1]
-                          if r and r.Radius then
-                            r.Radius=r.Radius*sc
-                            if type(sr.Set)=="function" then sr:Set(0,r) else sr[1]=r end
-                            if ag then bs.AggGeom=ag else bs.SphereElems=sr end
-                          end
-                        end
-                      end)
-                    end
-                  end
-                  _G._MBones[assetName] = true
-                  if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
-                end
-              end
-            end
-          end
-        end
-      end)
     end)
   end)
 end
 
--- ==================== AIMBOT + NO RECOIL (MEDIUM/SAFE VALUES) ====================
-
+-- ============================================================================
+-- MODULE 27: AIMBOT + NO RECOIL (MEDIUM/SAFE VALUES)
+-- ============================================================================
 local function ApplyAimbotAndNoRecoil()
-    pcall(function()
+    SafeExec(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         
@@ -1351,7 +1300,7 @@ local function ApplyAimbotAndNoRecoil()
         local shootComp = currentWeapon.ShootWeaponEntityComp
         if not slua.isValid(shootComp) then return end
         
-        -- ===== NO RECOIL (Medium/Safe Values) =====
+        -- NO RECOIL
         shootComp.RecoilKick = 0.15
         shootComp.RecoilKickADS = 0.12
         shootComp.AnimationKick = 0.10
@@ -1360,12 +1309,10 @@ local function ApplyAimbotAndNoRecoil()
         shootComp.AccessoriesRecoveryFactor = 0.50
         shootComp.GameDeviationFactor = 0.35
         shootComp.GameDeviationAccuracy = 0.30
-        
-        -- Weapon switch speed
         shootComp.SwitchFromBackpackToIdleTime = 0.25
         shootComp.SwitchFromIdleToBackpackTime = 0.25
         
-        -- ===== RECOIL INFO (Medium Values) =====
+        -- RECOIL INFO
         if shootComp.RecoilInfo then
             shootComp.RecoilInfo.VerticalRecoilMin = 0.15
             shootComp.RecoilInfo.VerticalRecoilMax = 0.25
@@ -1377,9 +1324,8 @@ local function ApplyAimbotAndNoRecoil()
             shootComp.RecoilInfo.RecoilModifierProne = 0.20
         end
         
-        -- ===== AIMBOT CONFIG (Medium/Subtle Values) =====
+        -- AIMBOT CONFIG
         if shootComp.AutoAimingConfig then
-            -- Outer range (long range aim assist)
             if shootComp.AutoAimingConfig.OuterRange then
                 shootComp.AutoAimingConfig.OuterRange.Speed = 5.0
                 shootComp.AutoAimingConfig.OuterRange.SpeedRate = 4.0
@@ -1388,7 +1334,6 @@ local function ApplyAimbotAndNoRecoil()
                 shootComp.AutoAimingConfig.OuterRange.SpeedRateSight = 3.5
             end
             
-            -- Inner range (close range aim assist)
             if shootComp.AutoAimingConfig.InnerRange then
                 shootComp.AutoAimingConfig.InnerRange.Speed = 6.0
                 shootComp.AutoAimingConfig.InnerRange.SpeedRate = 5.0
@@ -1397,7 +1342,6 @@ local function ApplyAimbotAndNoRecoil()
                 shootComp.AutoAimingConfig.InnerRange.SpeedRateSight = 4.0
             end
             
-            -- Global aimbot settings
             shootComp.AutoAimingConfig.adsorbMaxRange = 150.0
             shootComp.AutoAimingConfig.adsorbMinRange = 15.0
             shootComp.AutoAimingConfig.adsorbMinAttenuationDis = 80.0
@@ -1408,29 +1352,26 @@ local function ApplyAimbotAndNoRecoil()
             shootComp.AutoAimingConfig.DyingRate = 0.5
         end
         
-        -- ===== AIM BONE SETTINGS (Aim at head) =====
-        pcall(function()
+        -- AIM BONE SETTINGS
+        SafeExec(function()
             local aimComp = char.BP_AutoAimingComponent_C or 
                            char.BP_AutoAimingComponent or 
                            char.AutoAimingComponent
             
             if slua.isValid(aimComp) and aimComp.Bones then
-                -- Set aim target to head
-                pcall(function() 
-                    if aimComp.Bones.Set then
-                        aimComp.Bones:Set(0, "head")
-                        aimComp.Bones:Set(1, "head")
-                        aimComp.Bones:Set(2, "head")
-                    else
-                        aimComp.Bones[0] = "head"
-                        aimComp.Bones[1] = "head"
-                        aimComp.Bones[2] = "head"
-                    end
-                end)
+                if aimComp.Bones.Set then
+                    aimComp.Bones:Set(0, "head")
+                    aimComp.Bones:Set(1, "head")
+                    aimComp.Bones:Set(2, "head")
+                else
+                    aimComp.Bones[0] = "head"
+                    aimComp.Bones[1] = "head"
+                    aimComp.Bones[2] = "head"
+                end
             end
         end)
         
-        -- ===== SPREAD REDUCTION =====
+        -- SPREAD REDUCTION
         if shootComp.SpreadConfig then
             shootComp.SpreadConfig.BaseSpread = 0.5
             shootComp.SpreadConfig.ADSSpread = 0.3
@@ -1438,27 +1379,22 @@ local function ApplyAimbotAndNoRecoil()
             shootComp.SpreadConfig.JumpSpread = 0.6
         end
         
-        -- ===== AIM ASSIST STRENGTH =====
+        -- AIM ASSIST STRENGTH
         if shootComp.AimAssistConfig then
             shootComp.AimAssistConfig.bEnableAimAssist = true
             shootComp.AimAssistConfig.AimAssistStrength = 0.65
             shootComp.AimAssistConfig.RotationLag = 0.35
             shootComp.AimAssistConfig.MaxAimAssistAngle = 8.0
         end
-        
     end)
 end
 
--- ===== TIMER TO APPLY CONTINUOUSLY =====
 local function StartAimbotTimer()
-    pcall(function()
+    SafeExec(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         
-        -- Store timer reference to avoid duplicate timers
-        if _G._AimbotTimerActive and _G._AimbotTimerPC == pc then 
-            return 
-        end
+        if _G._AimbotTimerActive and _G._AimbotTimerPC == pc then return end
         
         _G._AimbotTimerPC = pc
         _G._AimbotTimerActive = true
@@ -1469,11 +1405,9 @@ local function StartAimbotTimer()
     end)
 end
 
--- ===== WEAPON SWITCH DETECTION (Re-apply on weapon change) =====
 local _LastWeaponID = nil
-
 local function CheckWeaponChangeAndReapply()
-    pcall(function()
+    SafeExec(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if not slua.isValid(pc) then return end
         
@@ -1488,31 +1422,175 @@ local function CheckWeaponChangeAndReapply()
             local currentID = currentWeapon:GetWeaponID()
             if currentID ~= _LastWeaponID then
                 _LastWeaponID = currentID
-                ApplyAimbotAndNoRecoil() -- Re-apply on weapon switch
+                ApplyAimbotAndNoRecoil()
             end
         end
     end)
 end
 
--- ===== START ALL =====
-pcall(function()
-    -- Start main aimbot timer
+SafeExec(function()
     StartAimbotTimer()
-    
-    -- Start weapon change detector
     local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if slua.isValid(pc) and pc.AddGameTimer then
         pc:AddGameTimer(0.5, true, CheckWeaponChangeAndReapply)
     end
 end)
 
-print("[MERGED BYPASS] Complete - All Security Systems Disabled")
-print("  ✓ SLUA + MD5 + PAK Signature")
-print("  ✓ CoronaLab + PlayerSecurityInfo")
-print("  ✓ CircleFlow + ModifierException")
-print("  ✓ ShootVerify + BulletHitInfo")
-print("  ✓ HiggsBoson + Anti-Cheat")
-print("  ✓ Logs + Screenshots + Analytics")
-print("  ✓ All Subsystems Killed")
-print("  ✓ Chams: GREEN Visible / YELLOW Behind Walls")
-print("  ✓ ESP Names REMOVED | Bot/Player Counter REMOVED")
+-- ============================================================================
+-- IS AIPAWN BOT DETECTION + COUNTER
+-- ============================================================================
+local function IsAIPawn(pawn)
+    if not slua.isValid(pawn) then return false end
+    
+    if pawn.IsAIPawn and type(pawn.IsAIPawn) == "function" then
+        return pawn:IsAIPawn()
+    end
+    
+    if Game.IsAI and type(Game.IsAI) == "function" then
+        return Game:IsAI(pawn)
+    end
+    
+    if pawn.GetController then
+        local controller = pawn:GetController()
+        if slua.isValid(controller) then
+            local cName = tostring(controller:GetName() or "")
+            if cName:find("AI") or cName:find("Bot") then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+local function IsPawnAliveBot(pawn)
+    if not slua.isValid(pawn) then return false end
+    if pawn.HealthStatus then
+        local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
+        return SecurityCommonUtils.IsHealthStatusAlive(pawn.HealthStatus)
+    end
+    return (pawn.Health or 0) > 0
+end
+
+local function GetBotAndRealCount()
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if not slua.isValid(pc) then return 0, 0 end
+    
+    local localPlayer = pc:GetPlayerCharacterSafety()
+    if not slua.isValid(localPlayer) then return 0, 0 end
+    
+    local allChars = Game:GetAllPlayerPawns() or {}
+    local myTeamId = localPlayer.TeamID or 0
+    
+    local botCount = 0
+    local realCount = 0
+    
+    for _, enemy in pairs(allChars) do
+        if slua.isValid(enemy) and enemy ~= localPlayer then
+            local enemyTeamId = enemy.TeamID or 0
+            if enemyTeamId ~= myTeamId and IsPawnAliveBot(enemy) then
+                if IsAIPawn(enemy) then
+                    botCount = botCount + 1
+                else
+                    realCount = realCount + 1
+                end
+            end
+        end
+    end
+    
+    return botCount, realCount
+end
+
+local function DrawCounter()
+    SafeExec(function()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if not slua.isValid(pc) then return end
+        
+        local localPlayer = pc:GetPlayerCharacterSafety()
+        if not slua.isValid(localPlayer) then return end
+        
+        local hud = pc:GetHUD()
+        if not slua.isValid(hud) then return end
+        
+        local botCount, realCount = GetBotAndRealCount()
+        
+        hud:AddDebugText(string.format("🤖 BOT: %d", botCount), localPlayer, 1,
+            {X=0, Y=0, Z=220}, {X=0, Y=0, Z=220},
+            {R=0, G=255, B=255, A=255}, true, false, true, nil, 1.0, true)
+        
+        hud:AddDebugText(string.format("👤 REAL: %d", realCount), localPlayer, 1,
+            {X=0, Y=0, Z=205}, {X=0, Y=0, Z=205},
+            {R=255, G=255, B=0, A=255}, true, false, true, nil, 1.0, true)
+        
+        hud:AddDebugText(string.format("🎯 TOTAL: %d", botCount + realCount), localPlayer, 1,
+            {X=0, Y=0, Z=190}, {X=0, Y=0, Z=190},
+            {R=255, G=255, B=255, A=255}, true, false, true, nil, 0.9, true)
+        
+        local allChars = Game:GetAllPlayerPawns() or {}
+        local myTeamId = localPlayer.TeamID or 0
+        local myPos = localPlayer:K2_GetActorLocation()
+        
+        for _, enemy in pairs(allChars) do
+            if slua.isValid(enemy) and enemy ~= localPlayer then
+                local enemyTeamId = enemy.TeamID or 0
+                if enemyTeamId ~= myTeamId and IsPawnAliveBot(enemy) then
+                    local enemyPos = enemy:K2_GetActorLocation()
+                    local dx = enemyPos.X - myPos.X
+                    local dy = enemyPos.Y - myPos.Y
+                    local dz = enemyPos.Z - myPos.Z
+                    local dist = math.sqrt(dx*dx + dy*dy + dz*dz) / 100
+                    
+                    if dist <= 150 then
+                        local isBot = IsAIPawn(enemy)
+                        local label = isBot and "🤖 BOT" or "👤 REAL"
+                        local color = isBot and {R=0, G=255, B=255, A=255} or {R=255, G=255, B=0, A=255}
+                        
+                        hud:AddDebugText(label, enemy, 0.8,
+                            {X=0, Y=0, Z=100}, {X=0, Y=0, Z=100},
+                            color, true, false, true, nil, 0.7, true)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function StartCounter()
+    local pc = slua_GameFrontendHUD:GetPlayerController()
+    if slua.isValid(pc) and pc.AddGameTimer then
+        pc:AddGameTimer(0.3, true, DrawCounter)
+        print("[IsAIPawn Counter] Activated - BOT vs REAL")
+    else
+        local fb = slua_GameFrontendHUD or Game
+        if fb and slua.isValid(fb) then
+            fb:AddGameTimer(1.0, false, StartCounter)
+        end
+    end
+end
+
+-- ============================================================================
+-- MAIN CLASS
+-- ============================================================================
+function BRPlayerCharacterBase:ctor()
+end
+
+function BRPlayerCharacterBase:_PostConstruct()
+    if BRPlayerCharacterBase.__super then
+        BRPlayerCharacterBase.__super._PostConstruct(self)
+    end
+    self:InitAddSpecialMoveInfo()
+    self.bCanNearDeathGiveup = true
+    StartCounter()
+    print("[GHOST PROTOCOL] Complete - All Security Systems Disabled")
+    print("  ✓ SLUA + MD5 + PAK Signature")
+    print("  ✓ CoronaLab + PlayerSecurityInfo")
+    print("  ✓ CircleFlow + ModifierException")
+    print("  ✓ ShootVerify + BulletHitInfo")
+    print("  ✓ HiggsBoson + Anti-Cheat")
+    print("  ✓ Heartbeat + SwiftHawk")
+    print("  ✓ Logs + Screenshots + Analytics")
+    print("  ✓ All Subsystems Killed")
+    print("  ✓ Chams: GREEN Visible / YELLOW Behind Walls")
+    print("  ✓ ESP: HP Bars Only")
+    print("  ✓ Bot Counter Active - BOT vs REAL")
+end
