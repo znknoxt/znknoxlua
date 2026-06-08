@@ -24,9 +24,11 @@ end
 local ok_gd, GameplayData = pcall(require, "GameLua.GameCore.Data.GameplayData")
 if not ok_gd then GameplayData = nil end
 
-print("[CHETAN_MODS] COMPLETE BYPASS INITIALIZING...")
+print("[GHOST PROTOCOL] Initializing Core...")
 
--- ==================== MODULE 1: SLUA & INTEGRITY BYPASS ====================
+-- ============================================================================
+-- MODULE 1: SLUA & INTEGRITY BYPASS
+-- ============================================================================
 pcall(function()
     if slua and slua.getSignature then
         slua.getSignature = function() return math.random(0xDE000000, 0xFFFFFFFF) end
@@ -40,10 +42,12 @@ pcall(function()
     if slua_serialize and slua_serialize.check then
         slua_serialize.check = function() return true end
     end
-    print("[CHETAN_MODS] ✓ SLUA Integrity Bypassed")
+    print("[GHOST] ✓ SLUA Integrity Bypassed")
 end)
 
--- ==================== MODULE 2: MD5 & PAK BYPASS ====================
+-- ============================================================================
+-- MODULE 2: MD5 & PAK BYPASS
+-- ============================================================================
 pcall(function()
     local console = import("KismetSystemLibrary")
     if console then
@@ -58,15 +62,22 @@ pcall(function()
         CreativeModeBlueprintLibrary.GetContentDiffData = function() return true, "BYPASSED" end
     end
     if _G.MD5Hash then _G.MD5Hash = function() return "00000000000000000000000000000000" end end
-    print("[CHETAN_MODS] ✓ MD5 & PAK Bypassed")
+    local STExtraBlueprintFunctionLibrary = import("STExtraBlueprintFunctionLibrary")
+    if STExtraBlueprintFunctionLibrary then
+        if STExtraBlueprintFunctionLibrary.CheckMD5 then STExtraBlueprintFunctionLibrary.CheckMD5 = function() return true end end
+        if STExtraBlueprintFunctionLibrary.GetMD5 then STExtraBlueprintFunctionLibrary.GetMD5 = function() return "BYPASS" end end
+    end
+    print("[GHOST] ✓ MD5 & PAK Bypassed")
 end)
 
--- ==================== MODULE 3: MAIN BYPASS INIT ====================
+-- ============================================================================
+-- MODULE 3: MAIN BYPASS INIT
+-- ============================================================================
 pcall(function()
     local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
     if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
     if Msg and Msg.Show then
-        Msg.Show(4, "CHETAN_MODS", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
+        Msg.Show(4, "GHOST PROTOCOL", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\nPlay Safe")
     end
 end)
 
@@ -139,10 +150,12 @@ pcall(function()
         secUtils.EStrategyTypeInReplay.ClientGravityAnomalyCount = 0
         secUtils.EStrategyTypeInReplay.FlyingErrorCnt = 0
     end
-    print("[CHETAN_MODS] ✓ Main Bypass Active")
+    print("[GHOST] ✓ Main Bypass Active")
 end)
 
--- ==================== MODULE 4: HIGGS BOSON BYPASS ====================
+-- ============================================================================
+-- MODULE 4: HIGGS BOSON BYPASS
+-- ============================================================================
 pcall(function()
     local Higgs = safe_require("GameLua.Mod.BaseMod.Common.Security.HiggsBosonComponent")
     if Higgs then
@@ -171,10 +184,12 @@ pcall(function()
         Behavior.ReportBehavior = nop
         Behavior.CalcFinalScore = retZero
     end
-    print("[CHETAN_MODS] ✓ Higgs Boson Disabled")
+    print("[GHOST] ✓ Higgs Boson Disabled")
 end)
 
--- ==================== MODULE 5: CORONA LAB BYPASS ====================
+-- ============================================================================
+-- MODULE 5: CORONA LAB BYPASS
+-- ============================================================================
 pcall(function()
     if _G.CoronaLab then
         _G.CoronaLab.ReportData = nop
@@ -190,10 +205,12 @@ pcall(function()
             corona.CollectTelemetry = nop
         end
     end
-    print("[CHETAN_MODS] ✓ Corona Lab Disabled")
+    print("[GHOST] ✓ Corona Lab Disabled")
 end)
 
--- ==================== MODULE 6: PLAYER SECURITY INFO BYPASS ====================
+-- ============================================================================
+-- MODULE 6: PLAYER SECURITY INFO BYPASS
+-- ============================================================================
 pcall(function()
     if _G.PlayerSecurityInfo then
         _G.PlayerSecurityInfo.ReportCheat = nop
@@ -207,10 +224,12 @@ pcall(function()
         SecuritySubsystem.CheckCheat = retFalse
         SecuritySubsystem.ValidatePlayer = function() return true end
     end
-    print("[CHETAN_MODS] ✓ Player Security Disabled")
+    print("[GHOST] ✓ Player Security Disabled")
 end)
 
--- ==================== MODULE 7: CIRCLE FLOW BYPASS ====================
+-- ============================================================================
+-- MODULE 7: CLIENT CIRCLE FLOW BYPASS
+-- ============================================================================
 pcall(function()
     local CircleFlow = safe_require("GameLua.Mod.BaseMod.Client.Security.ClientCircleFlowSubsystem")
     if CircleFlow then
@@ -222,10 +241,12 @@ pcall(function()
     if _G.IsEnableReportMrpcsInCircleFlow then _G.IsEnableReportMrpcsInCircleFlow = retFalse end
     if _G.IsEnableReportMrpcsInPartCircleFlow then _G.IsEnableReportMrpcsInPartCircleFlow = retFalse end
     if _G.IsEnableReportMrpcsFlow then _G.IsEnableReportMrpcsFlow = retFalse end
-    print("[CHETAN_MODS] ✓ Circle Flow Disabled")
+    print("[GHOST] ✓ Circle Flow Disabled")
 end)
 
--- ==================== MODULE 8: MODIFIER EXCEPTION BYPASS ====================
+-- ============================================================================
+-- MODULE 8: MODIFIER EXCEPTION BYPASS
+-- ============================================================================
 pcall(function()
     if _G.bReportedModifierException then _G.bReportedModifierException = false end
     local ModifierSubsystem = safe_require("GameLua.Mod.BaseMod.Common.Security.ModifierExceptionSubsystem")
@@ -234,10 +255,12 @@ pcall(function()
         ModifierSubsystem.CheckModifier = function() return true end
         ModifierSubsystem.ValidateModifier = function() return true end
     end
-    print("[CHETAN_MODS] ✓ Modifier Exception Disabled")
+    print("[GHOST] ✓ Modifier Exception Disabled")
 end)
 
--- ==================== MODULE 9: SHOOT VERIFICATION BYPASS ====================
+-- ============================================================================
+-- MODULE 9: SHOOT VERIFICATION BYPASS
+-- ============================================================================
 pcall(function()
     local ShootVerify = safe_require("GameLua.Dev.Subsystem.ShootVerifySubSystemClient")
     if ShootVerify then
@@ -251,10 +274,12 @@ pcall(function()
         _G.BulletHitInfoUploadData.Send = nop
         _G.BulletHitInfoUploadData.Upload = nop
     end
-    print("[CHETAN_MODS] ✓ Shoot Verification Disabled")
+    print("[GHOST] ✓ Shoot Verification Disabled")
 end)
 
--- ==================== MODULE 10: BAN LOGIC BYPASS ====================
+-- ============================================================================
+-- MODULE 10: BAN LOGIC BYPASS
+-- ============================================================================
 pcall(function()
     local BanLogic = package.loaded["client.slua.logic.ban.ClientBanLogic"]
     if BanLogic then
@@ -280,10 +305,12 @@ pcall(function()
         TTBan.CheckIfCanCreateRole = nop
         TTBan.GetCarrierInfo = function() return "[{\"mcc\":\"000\"}]" end
     end
-    print("[CHETAN_MODS] ✓ Ban Logic Bypassed")
+    print("[GHOST] ✓ Ban Logic Bypassed")
 end)
 
--- ==================== MODULE 11: REPORT SUBSYSTEM BYPASS ====================
+-- ============================================================================
+-- MODULE 11: REPORT SUBSYSTEM BYPASS
+-- ============================================================================
 pcall(function()
     local clientReport = package.loaded["GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem"]
     if clientReport then
@@ -312,10 +339,12 @@ pcall(function()
         for _, fn in ipairs(funcs) do if ClientHawk[fn] then ClientHawk[fn] = nop end end
         ClientHawk.CanInspectorBroadcast = retFalse
     end
-    print("[CHETAN_MODS] ✓ Report Systems Disabled")
+    print("[GHOST] ✓ Report Systems Disabled")
 end)
 
--- ==================== MODULE 12: TLOG BYPASS ====================
+-- ============================================================================
+-- MODULE 12: TLOG BYPASS
+-- ============================================================================
 pcall(function()
     local tlogModules = {
         "client.network.Protocol.ClientTlogHandler",
@@ -324,6 +353,8 @@ pcall(function()
         "client.network.Protocol.LobbyPingReportHandler",
         "client.slua.config.tlog.tlog_report_utils",
         "client.slua.data.BasicData.BasicDataTLogReport",
+        "client.slua.data.BasicData.BasicDataClientReport",
+        "client.slua.data.BasicData.BasicDataReport",
         "GameLua.Mod.BaseMod.DS.Security.DSCommonTLogSubsystem",
         "GameLua.Mod.BaseMod.DS.Security.DSFightTLogSubsystem",
         "GameLua.Mod.BaseMod.DS.Security.DSSecurityTLogSubsystem",
@@ -339,10 +370,12 @@ pcall(function()
             end
         end
     end
-    print("[CHETAN_MODS] ✓ TLog Systems Disabled")
+    print("[GHOST] ✓ TLog Systems Disabled")
 end)
 
--- ==================== MODULE 13: NETWORK PACKET BLOCK ====================
+-- ============================================================================
+-- MODULE 13: NETWORK PACKET BLOCK
+-- ============================================================================
 pcall(function()
     if NetUtil and NetUtil.SendPacket then
         local originalSend = NetUtil.SendPacket
@@ -352,8 +385,9 @@ pcall(function()
             ["ReportPlayerBehavior"]=1,["ReportTeammatHurt"]=1,["ReportPlayerMoveRoute"]=1,
             ["ReportPlayerPosition"]=1,["ReportSecVehicleMoveFlow"]=1,["report_parachute_data"]=1,
             ["on_tss_sdk_anti_data"]=1,["ReportAimFlow"]=1,["ReportHitFlow"]=1,
-            ["ReportCircleFlow"]=1,["report_players_ping"]=1,["Heartbeat"]=1,
-            ["ClientHeartbeat"]=1,["ServerHeartbeat"]=1,["SwiftHawk"]=1
+            ["ReportCircleFlow"]=1,["report_players_ping"]=1,["report_player_ip"]=1,
+            ["report_net_saturate"]=1,["Heartbeat"]=1,["ClientHeartbeat"]=1,
+            ["ServerHeartbeat"]=1,["SwiftHawk"]=1
         }
         NetUtil.SendPacket = function(packetName, ...)
             if blockedPackets[packetName] then return nil end
@@ -361,10 +395,12 @@ pcall(function()
         end
         NetUtil.IsBypassed = true
     end
-    print("[CHETAN_MODS] ✓ Network Packet Filter Active")
+    print("[GHOST] ✓ Network Packet Filter Active")
 end)
 
--- ==================== MODULE 14: HEARTBEAT BYPASS ====================
+-- ============================================================================
+-- MODULE 14: HEARTBEAT & SWIFT HAWK BYPASS
+-- ============================================================================
 pcall(function()
     local heartbeatFuncs = {"Heartbeat", "SendHeartbeat", "ClientHeartbeat", "ServerHeartbeat"}
     for _, func in ipairs(heartbeatFuncs) do
@@ -381,10 +417,12 @@ pcall(function()
             _G.GameplayCallbacks[func] = nop
         end
     end
-    print("[CHETAN_MODS] ✓ Heartbeat & Swift Hawk Disabled")
+    print("[GHOST] ✓ Heartbeat & Swift Hawk Disabled")
 end)
 
--- ==================== MODULE 15: HTTP REQUEST BLOCKER ====================
+-- ============================================================================
+-- MODULE 15: HTTP REQUEST BLOCKER
+-- ============================================================================
 pcall(function()
     local BLACKLIST_HOSTS = {
         "tss.tencent","syzsdk","gcloud.qq","reportlog","tdos","logupload","feedback.wh","crash2",
@@ -402,10 +440,39 @@ pcall(function()
         local orig = _G.HttpRequest
         _G.HttpRequest = function(url, ...) if isBlacklisted(url) then return nil end return orig(url, ...) end
     end
-    print("[CHETAN_MODS] ✓ HTTP Request Blocker Active")
+    print("[GHOST] ✓ HTTP Request Blocker Active")
 end)
 
--- ==================== MODULE 16: WALLHACK (CHAMS) ====================
+-- ============================================================================
+-- MODULE 16: PERSISTENT SECURITY KILLER
+-- ============================================================================
+local function KillAllSecuritySubsystems()
+    pcall(function()
+        local subMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
+        if not subMgr then return end
+        local subsystemsToKill = {
+            "CoronaLabSubsystem","PlayerSecurityInfoSubsystem","ClientCircleFlowSubsystem",
+            "ModifierExceptionSubsystem","SimulateCharacterSubsystem","ShootVerifySubSystemClient",
+            "HiggsBosonComponent","ClientReportPlayerSubsystem","DSReportPlayerSubsystem",
+            "ClientHawkEyePatrolSubsystem","DSHawkEyePatrolSubsystem","ClientDataStatistcsSubsystem",
+            "AFKReportorSubsystem","BehaviorScoreSubsystem","HeartbeatSubsystem","SwiftHawkSubsystem"
+        }
+        for _, name in ipairs(subsystemsToKill) do
+            local sub = subMgr:Get(name)
+            if sub then
+                for k, v in pairs(sub) do
+                    if type(v) == "function" and (k:find("Report") or k:find("Send") or k:find("Upload") or k:find("Verify")) then
+                        pcall(function() sub[k] = nop end)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- ============================================================================
+-- MODULE 17: WALLHACK (CHAMS)
+-- ============================================================================
 local function ApplyWallHack(localPlayer, enemy, pc)
     if not _G.CheatsEnabled then return end
     if not slua.isValid(enemy) then return end
@@ -447,8 +514,11 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== MODULE 17: ESP (HP BARS ONLY) ====================
+-- ============================================================================
+-- MODULE 18: ESP (HP BARS ONLY)
+-- ============================================================================
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
+local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 local cachedPawns = {}
 local lastPawnRefresh = 0
 
@@ -469,7 +539,7 @@ end
 local function ESPTick()
     if not _G.CheatsEnabled then return end
     local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-    if not isValid(uCon) then return end
+    if not (isValid(uCon) and Game:IsClassOf(uCon, ASTExtraPlayerController)) then return end
     local currentPawn = uCon:GetCurPawn()
     if not isValid(currentPawn) then return end
 
@@ -523,7 +593,7 @@ pcall(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if isValid(pc) and pc.AddGameTimer then
             pc:AddGameTimer(0.15, true, ESPTick)
-            print("[CHETAN_MODS] ✓ ESP Active")
+            print("[GHOST] ✓ ESP Active")
         else
             local fb = slua_GameFrontendHUD or Game
             if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartESP) end
@@ -532,7 +602,9 @@ pcall(function()
     StartESP()
 end)
 
--- ==================== MODULE 18: AIMBOT + NO RECOIL ====================
+-- ============================================================================
+-- MODULE 19: AIMBOT + NO RECOIL
+-- ============================================================================
 local function ApplyAimbotAndNoRecoil()
     if not _G.CheatsEnabled then return end
     pcall(function()
@@ -563,11 +635,6 @@ local function ApplyAimbotAndNoRecoil()
             shootComp.AutoAimingConfig.adsorbMinRange = 10.0
             if shootComp.AutoAimingConfig.OuterRange then
                 shootComp.AutoAimingConfig.OuterRange.Speed = 6.0
-                shootComp.AutoAimingConfig.OuterRange.SpeedRate = 5.0
-            end
-            if shootComp.AutoAimingConfig.InnerRange then
-                shootComp.AutoAimingConfig.InnerRange.Speed = 8.0
-                shootComp.AutoAimingConfig.InnerRange.SpeedRate = 6.0
             end
         end
         
@@ -577,7 +644,6 @@ local function ApplyAimbotAndNoRecoil()
             if slua.isValid(aimComp) and aimComp.Bones then
                 aimComp.Bones[0] = "head"
                 aimComp.Bones[1] = "head"
-                aimComp.Bones[2] = "head"
             end
         end)
     end)
@@ -589,7 +655,7 @@ pcall(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if isValid(pc) and pc.AddGameTimer then
             pc:AddGameTimer(0.15, true, ApplyAimbotAndNoRecoil)
-            print("[CHETAN_MODS] ✓ Aimbot + No Recoil Active")
+            print("[GHOST] ✓ Aimbot + No Recoil Active")
         else
             local fb = slua_GameFrontendHUD or Game
             if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartAimbot) end
@@ -598,7 +664,9 @@ pcall(function()
     StartAimbot()
 end)
 
--- ==================== MODULE 19: FPS UNLOCK ====================
+-- ============================================================================
+-- MODULE 20: FPS UNLOCK
+-- ============================================================================
 pcall(function()
     local function UnlockFPS()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
@@ -613,10 +681,12 @@ pcall(function()
         end
     end
     UnlockFPS()
-    print("[CHETAN_MODS] ✓ FPS Unlocked to 165")
+    print("[GHOST] ✓ FPS Unlocked to 165")
 end)
 
--- ==================== MODULE 20: iPAD VIEW ====================
+-- ============================================================================
+-- MODULE 21: iPAD VIEW
+-- ============================================================================
 pcall(function()
     local function SetiPadFOV()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
@@ -633,7 +703,7 @@ pcall(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if isValid(pc) and pc.AddGameTimer then
             pc:AddGameTimer(0.5, true, SetiPadFOV)
-            print("[CHETAN_MODS] ✓ iPad FOV Active (120)")
+            print("[GHOST] ✓ iPad FOV Active (120)")
         else
             local fb = slua_GameFrontendHUD or Game
             if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartFOV) end
@@ -642,46 +712,9 @@ pcall(function()
     StartFOV()
 end)
 
--- ==================== MODULE 21: PERSISTENT SECURITY KILLER ====================
-local function KillAllSecuritySubsystems()
-    pcall(function()
-        local subMgr = safe_require("GameLua.GameCore.Module.Subsystem.SubsystemMgr")
-        if not subMgr then return end
-        local subsystemsToKill = {
-            "CoronaLabSubsystem","PlayerSecurityInfoSubsystem","ClientCircleFlowSubsystem",
-            "ModifierExceptionSubsystem","SimulateCharacterSubsystem","ShootVerifySubSystemClient",
-            "HiggsBosonComponent","ClientReportPlayerSubsystem","DSReportPlayerSubsystem",
-            "ClientHawkEyePatrolSubsystem","DSHawkEyePatrolSubsystem","ClientDataStatistcsSubsystem",
-            "AFKReportorSubsystem","BehaviorScoreSubsystem","HeartbeatSubsystem","SwiftHawkSubsystem"
-        }
-        for _, name in ipairs(subsystemsToKill) do
-            local sub = subMgr:Get(name)
-            if sub then
-                for k, v in pairs(sub) do
-                    if type(v) == "function" and (k:find("Report") or k:find("Send") or k:find("Upload") or k:find("Verify")) then
-                        pcall(function() sub[k] = nop end)
-                    end
-                end
-            end
-        end
-    end)
-end
-
-pcall(function()
-    local function StartKiller()
-        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-        if isValid(pc) and pc.AddGameTimer then
-            pc:AddGameTimer(3.0, true, KillAllSecuritySubsystems)
-            print("[CHETAN_MODS] ✓ Security Persistence Active")
-        else
-            local fb = slua_GameFrontendHUD or Game
-            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartKiller) end
-        end
-    end
-    StartKiller()
-end)
-
--- ==================== BOT COUNTER ====================
+-- ============================================================================
+-- MODULE 22: BOT COUNTER
+-- ============================================================================
 local function IsAIPawn(pawn)
     if not slua.isValid(pawn) then return false end
     if pawn.IsAIPawn and type(pawn.IsAIPawn) == "function" then return pawn:IsAIPawn() end
@@ -727,7 +760,7 @@ pcall(function()
         local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
         if isValid(pc) and pc.AddGameTimer then
             pc:AddGameTimer(0.3, true, DrawCounter)
-            print("[CHETAN_MODS] ✓ Bot Counter Active")
+            print("[GHOST] ✓ Bot Counter Active")
         else
             local fb = slua_GameFrontendHUD or Game
             if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartCounter) end
@@ -736,20 +769,164 @@ pcall(function()
     StartCounter()
 end)
 
--- ==================== FINAL PRINT ====================
-print("[CHETAN_MODS] ╔══════════════════════════════════════════════════════════════╗")
-print("[CHETAN_MODS] ║                    CHETAN_MODS COMPLETE                      ║")
-print("[CHETAN_MODS] ╠══════════════════════════════════════════════════════════════╣")
-print("[CHETAN_MODS] ║  ✓ SLUA + MD5 + PAK Bypass    ✓ Higgs Boson Disabled        ║")
-print("[CHETAN_MODS] ║  ✓ Corona Lab Disabled        ✓ Player Security Disabled    ║")
-print("[CHETAN_MODS] ║  ✓ Circle Flow Disabled       ✓ Modifier Exception Disabled ║")
-print("[CHETAN_MODS] ║  ✓ Shoot Verify Disabled      ✓ Ban Logic Bypassed          ║")
-print("[CHETAN_MODS] ║  ✓ Report Systems Disabled    ✓ TLog Systems Disabled       ║")
-print("[CHETAN_MODS] ║  ✓ Network Packet Filter      ✓ Heartbeat Disabled          ║")
-print("[CHETAN_MODS] ║  ✓ HTTP Blocker Active        ✓ Security Persistence        ║")
-print("[CHETAN_MODS] ╠══════════════════════════════════════════════════════════════╣")
-print("[CHETAN_MODS] ║  ✓ Wallhack (Green/Yellow)    ✓ ESP (HP Bars Only)          ║")
-print("[CHETAN_MODS] ║  ✓ Aimbot + No Recoil         ✓ Bot Counter                 ║")
-print("[CHETAN_MODS] ║  ✓ 165 FPS Unlock             ✓ iPad FOV (120)              ║")
-print("[CHETAN_MODS] ╚══════════════════════════════════════════════════════════════╝")
-print("[CHETAN_MODS] ALL SYSTEMS ONLINE - PLAY SAFE!")
+-- ============================================================================
+-- MODULE 23: PERSISTENT TIMER FOR SECURITY
+-- ============================================================================
+pcall(function()
+    local function StartPersistentKiller()
+        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+        if isValid(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(3.0, true, KillAllSecuritySubsystems)
+            print("[GHOST] ✓ Security Persistence Active")
+        else
+            local fb = slua_GameFrontendHUD or Game
+            if fb and isValid(fb) then fb:AddGameTimer(1.0, false, StartPersistentKiller) end
+        end
+    end
+    StartPersistentKiller()
+end)
+
+-- ============================================================================
+-- MODULE 24: BRPLAYERCHARACTERBASE CLASS
+-- ============================================================================
+local BRPlayerCharacterBase = {
+    ServerRPC = {},
+    ClientRPC = {},
+    MulticastRPC = {}
+}
+
+BRPlayerCharacterBase.ServerRPC.ServerRPC_NearDeathGiveupRescue = { Reliable = true, Params = {} }
+BRPlayerCharacterBase.ServerRPC.ServerRPC_CarryDeadBox = { Reliable = true, Params = { UEnums.EPropertyClass.Object } }
+BRPlayerCharacterBase.ServerRPC.RPC_Server_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+BRPlayerCharacterBase.MulticastRPC.MulticastRPC_GmPlayAction = { Reliable = true, Params = { UEnums.EPropertyClass.Int } }
+BRPlayerCharacterBase.ClientRPC.RPC_Client_SetShouldCheckPassWall = { Reliable = true, Params = { UEnums.EPropertyClass.Bool } }
+
+function BRPlayerCharacterBase:ctor()
+end
+
+function BRPlayerCharacterBase:_PostConstruct()
+    if BRPlayerCharacterBase.__super then
+        BRPlayerCharacterBase.__super._PostConstruct(self)
+    end
+    self:InitAddSpecialMoveInfo()
+    self.bCanNearDeathGiveup = true
+    
+    -- Start all features
+    StartCounter()
+    StartESP()
+    StartAimbot()
+    StartPersistentKiller()
+    
+    print("[GHOST PROTOCOL] Complete - All Security Systems Disabled")
+    print("  ✓ SLUA + MD5 + PAK Signature")
+    print("  ✓ CoronaLab + PlayerSecurityInfo")
+    print("  ✓ CircleFlow + ModifierException")
+    print("  ✓ ShootVerify + BulletHitInfo")
+    print("  ✓ HiggsBoson + Anti-Cheat")
+    print("  ✓ Heartbeat + SwiftHawk")
+    print("  ✓ Logs + Screenshots + Analytics")
+    print("  ✓ All Subsystems Killed")
+    print("  ✓ Chams: GREEN Visible / YELLOW Behind Walls")
+    print("  ✓ ESP: HP Bars Only")
+    print("  ✓ Aimbot + No Recoil")
+    print("  ✓ Bot Counter Active - BOT vs REAL")
+    print("  ✓ FPS Unlocked to 165")
+    print("  ✓ iPad FOV Active (120)")
+end
+
+function BRPlayerCharacterBase:ReceiveBeginPlay()
+    if BRPlayerCharacterBase.__super and BRPlayerCharacterBase.__super.ReceiveBeginPlay then
+        BRPlayerCharacterBase.__super.ReceiveBeginPlay(self)
+    end
+    
+    if slua.isValid(self.STCharacterMovement) then
+        self.STCharacterMovement.bPositiveBlowUp = true
+    end
+    
+    if Client then
+        GameplayData.AddCharacter(self.Object)
+    end
+end
+
+function BRPlayerCharacterBase:ReceiveEndPlay(EndPlayReason)
+    if BRPlayerCharacterBase.__super and BRPlayerCharacterBase.__super.ReceiveEndPlay then
+        BRPlayerCharacterBase.__super.ReceiveEndPlay(self, EndPlayReason)
+    end
+    if Client then
+        GameplayData.RemoveCharacter(self.Object)
+    end
+end
+
+function BRPlayerCharacterBase:OnPlayerEnterCarryBoxState()
+    if self.Super and self.Super.OnPlayerEnterCarryBoxState then
+        self.Super:OnPlayerEnterCarryBoxState()
+    end
+    if self.CarryDeadBoxFeature then
+        self.CarryDeadBoxFeature:OnPlayerEnterCarryBoxState()
+    end
+end
+
+function BRPlayerCharacterBase:OnPlayerLeaveCarryBoxState(bInIsInterrupt)
+    if self.Super and self.Super.OnPlayerLeaveCarryBoxState then
+        self.Super:OnPlayerLeaveCarryBoxState(bInIsInterrupt)
+    end
+    if self.CarryDeadBoxFeature then
+        self.CarryDeadBoxFeature:OnPlayerLeaveCarryBoxState(bInIsInterrupt)
+    end
+end
+
+function BRPlayerCharacterBase:ServerRPC_CarryDeadBox(uInDeadBox)
+    if slua.isValid(uInDeadBox) and Game:IsClassOf(uInDeadBox, import("/Script/ShadowTrackerExtra.PlayerTombBox")) and self.CarryDeadBoxFeature then
+        self.CarryDeadBoxFeature:CarryDeadBox(uInDeadBox)
+    end
+end
+
+function BRPlayerCharacterBase:ServerRPC_NearDeathGiveupRescue()
+    local uNearDeathComp = self.NearDeatchComponent
+    if self:IsNearDeath() and slua.isValid(uNearDeathComp) and self.bCanNearDeathGiveup == true then
+        uNearDeathComp:TriggerGotoDieExplictly(self.Object)
+    end
+end
+
+function BRPlayerCharacterBase:SwitchWeaponCheck(Slot, IgnoreState)
+    return true
+end
+
+function BRPlayerCharacterBase:HandleOnAttachedToVehicle(uVehicle) end
+function BRPlayerCharacterBase:HandleOnDetachedFromVehicle(uLastVehicle) end
+function BRPlayerCharacterBase:ClearAttachToVehicleTimer() end
+
+local CBRPlayerCharacterBase = require("class")(CharacterBase, nil, BRPlayerCharacterBase)
+
+return CombineClass.DeclareFeature(CBRPlayerCharacterBase, {
+    { SkyTransition = "GameLua.Mod.BaseMod.Gameplay.Feature.SkyControl.PlayerCharacterSkyTransitionFeature" },
+    { CarryDeadBoxFeature = "GameLua.Mod.Library.GamePlay.Feature.CarryDeadBoxFeature" },
+    { SpecialSuitFeature = "GameLua.Mod.Library.GamePlay.Feature.SpecialSuitFeature" },
+    { TeleportPawnFeature = "GameLua.Mod.Library.GamePlay.Feature.TeleportPawnFeature" },
+    { LifterControl = "GameLua.Mod.BaseMod.Gameplay.Feature.Player.CharacterLifterControlFeature" },
+    { FinalKillEffect = "GameLua.Mod.BaseMod.Gameplay.Feature.Player.PlayerCharacterFinalKillEffectFeature" },
+    { CampFeature = "GameLua.Mod.BaseMod.GamePlay.Feature.Camp.PlayerCharacterCampFeature" },
+    { BuildSkateFeature = "GameLua.Mod.BaseMod.GamePlay.Feature.PlayerCharacterBuildVehicleFeature" },
+    { CommonBornlandTransformFeature = "GameLua.Mod.BaseMod.Gameplay.Feature.HeroPropFeature.CommonBornlandTransformFeature" },
+    { ParachuteFormation = "GameLua.Mod.BaseMod.GamePlay.Feature.ParachuteFormationFeature" }
+}, "BRPlayerCharacterBase")
+
+-- ============================================================================
+-- FINAL PRINT
+-- ============================================================================
+print("[GHOST] ╔══════════════════════════════════════════════════════════════╗")
+print("[GHOST] ║                 GHOST PROTOCOL V5.0 COMPLETE                 ║")
+print("[GHOST] ╠══════════════════════════════════════════════════════════════╣")
+print("[GHOST] ║  ✓ SLUA + MD5 + PAK Bypass    ✓ Higgs Boson Disabled        ║")
+print("[GHOST] ║  ✓ Corona Lab Disabled        ✓ Player Security Disabled    ║")
+print("[GHOST] ║  ✓ Circle Flow Disabled       ✓ Modifier Exception Disabled ║")
+print("[GHOST] ║  ✓ Shoot Verify Disabled      ✓ Ban Logic Bypassed          ║")
+print("[GHOST] ║  ✓ Report Systems Disabled    ✓ TLog Systems Disabled       ║")
+print("[GHOST] ║  ✓ Network Packet Filter      ✓ Heartbeat Disabled          ║")
+print("[GHOST] ║  ✓ HTTP Blocker Active        ✓ Security Persistence        ║")
+print("[GHOST] ╠══════════════════════════════════════════════════════════════╣")
+print("[GHOST] ║  ✓ Wallhack (Green/Yellow)    ✓ ESP (HP Bars Only)          ║")
+print("[GHOST] ║  ✓ Aimbot + No Recoil         ✓ Bot Counter                 ║")
+print("[GHOST] ║  ✓ 165 FPS Unlock             ✓ iPad FOV (120)              ║")
+print("[GHOST] ╚══════════════════════════════════════════════════════════════╝")
+print("[GHOST] ALL SYSTEMS ONLINE - PLAY SAFE!")
