@@ -951,7 +951,7 @@ local function ApplyWallHack(localPlayer, enemy, pc)
     end)
 end
 
--- ==================== ESP ==================== 
+-- ==================== ESP (GREEN VISIBLE / YELLOW BEHIND WALLS) ==================== 
 local SecurityCommonUtils = require("GameLua.Mod.BaseMod.Common.Security.SecurityCommonUtils")
 local ASTExtraPlayerController = import("/Script/ShadowTrackerExtra.STExtraPlayerController")
 
@@ -1048,6 +1048,17 @@ local function ESPTick()
                     else
                         hpPercent = hp / maxHp
                     end
+
+                    -- Check visibility for color determination
+                    local isVisible = false
+                    local targetPos = tPawn:K2_GetActorLocation()
+                    pcall(function()
+                        if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
+                            isVisible = true
+                        end
+                    end)
+
+                    -- HP Color
                     local hpColor = {R=0,G=255,B=0,A=255}
                     if hpPercent < 0.3 then
                         hpColor = {R=255,G=0,B=0,A=255}
@@ -1057,6 +1068,12 @@ local function ESPTick()
                     if isKnock then
                         hpColor = {R=255,G=0,B=0,A=255}
                     end
+
+                    -- Name Color: GREEN when visible, YELLOW when behind walls
+                    local nameColor = isVisible and {R=0,G=255,B=0,A=255} or {R=255,G=255,B=0,A=255}
+                    
+                    -- Head dot color: GREEN when visible, YELLOW when behind walls
+                    local headDotColor = isVisible and {R=0,G=255,B=0,A=255} or {R=255,G=255,B=0,A=255}
 
                     local bones = {}
                     local mesh = tPawn.Mesh
@@ -1079,26 +1096,15 @@ local function ESPTick()
 
                     if crowded then
                         local hz = headPos and (headPos.Z - oz + 15)
-                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
+                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, headDotColor, true, false, true, nil, 1.0, true) end
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
                     else
                         local hz = headPos and (headPos.Z - oz + 15)
-                        local headChar = distM <= 25 and "❄" or "●"
-                        if hz then HUD:AddDebugText(headChar, tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, {R=255,G=0,B=0,A=255}, true, false, true, nil, 1.0, true) end
+                        if hz then HUD:AddDebugText("●", tPawn, TextScale(distM), {X=0,Y=0,Z=hz}, {X=0,Y=0,Z=hz}, headDotColor, true, false, true, nil, 1.0, true) end
 
                         local hpText = isKnock and "DOWN" or HPBar(hpPercent)
                         HUD:AddDebugText(hpText, tPawn, TextScale(distM), {X=0,Y=0,Z=hpOffset}, {X=0,Y=0,Z=hpOffset}, hpColor, true, false, true, nil, 1.0, true)
-
-                        local nameColor = {R=255,G=255,B=0,A=255}
-                        local targetPos = headPos or tPawn:K2_GetActorLocation()
-                        pcall(function()
-                            if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                nameColor = {R=255,G=255,B=0,A=255}
-                            else
-                                nameColor = {R=255,G=0,B=0,A=255}
-                            end
-                        end)
 
                         HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
 
@@ -1544,3 +1550,4 @@ print("  ✓ ShootVerify + BulletHitInfo")
 print("  ✓ HiggsBoson + Anti-Cheat")
 print("  ✓ Logs + Screenshots + Analytics")
 print("  ✓ All Subsystems Killed")
+print("  ✓ ESP: GREEN Visible / YELLOW Behind Walls")
