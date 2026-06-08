@@ -21,6 +21,15 @@ if not _G.BYPASS_STATE then
     }
 end
 
+-- Initialize feature toggles with defaults
+if not _G.Mod_Aimbot_Enabled then _G.Mod_Aimbot_Enabled = false end
+if not _G.Mod_ESP_Enabled then _G.Mod_ESP_Enabled = false end
+if not _G.Mod_Wallhack_Enabled then _G.Mod_Wallhack_Enabled = false end
+if not _G.Mod_Skin_Enabled then _G.Mod_Skin_Enabled = false end
+if _G.Mod_FPS165_Enabled == nil then _G.Mod_FPS165_Enabled = true end
+if _G.Mod_NoGrass_Enabled == nil then _G.Mod_NoGrass_Enabled = true end
+if _G.Mod_iPadView_Enabled == nil then _G.Mod_iPadView_Enabled = true end
+
 local require = require
 local import  = import
 local isValid = slua.isValid
@@ -1791,6 +1800,7 @@ _G.SyncAttachmentsToConfig = function()
 end
 
 _G.ApplyLocalPlayerSkins = function(p)
+    if _G.Mod_Skin_Enabled == false then return end
     if not isValid(p) then return end
 
     pcall(function()
@@ -1910,6 +1920,7 @@ local function locationsClose(loc1, loc2, tolerance)
 end
 
 _G.ApplyDeadBoxSkin = function()
+    if _G.Mod_Skin_Enabled == false then return end
     local pc = slua_GameFrontendHUD:GetPlayerController()
     if not pc then return end
     local uCharacter = pc:GetPlayerCharacterSafety()
@@ -2187,6 +2198,7 @@ _G._SetupSkinTimer()
 -- ==================== WALLHACK ====================
 local function ApplyWallHack(localPlayer, enemy, pc)
     if not _G.CheatsEnabled then return end
+    if _G.Mod_Wallhack_Enabled == false then return end
     if not slua.isValid(enemy) then return end
     local meshes = {}
     pcall(function()
@@ -2283,6 +2295,7 @@ end
 
 local function ESPTick()
     if not _G.CheatsEnabled then return end
+    if _G.Mod_ESP_Enabled == false then return end
     if _G._ESPTimerHandle and _G._ESPTimerChar and not isValid(_G._ESPTimerChar) then _G._ESPTimerHandle = nil; _G._ESPTimerChar = nil end
     local uCon = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if not (isValid(uCon) and Game:IsClassOf(uCon, ASTExtraPlayerController)) then return end
@@ -2532,7 +2545,7 @@ _G.EnableiPadViewUI = function()
 end
 
 _G.Enable165FPSLogic()
-_G.EnableiPadViewUI()
+if _G.Mod_iPadView_Enabled ~= false then _G.EnableiPadViewUI() end
 
 local pc = slua_GameFrontendHUD:GetPlayerController()
 if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
@@ -2560,11 +2573,13 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
           elseif rawSliderValue > 90 then
               targetTPP = rawSliderValue
           end
-          local uTPPCam = char.ThirdPersonCameraComponent
-          if isValid(uTPPCam) and not char.bIsWeaponAiming then
-              if uTPPCam.FieldOfView ~= targetTPP then
-                  uTPPCam.FieldOfView = targetTPP
-              end
+          if _G.Mod_iPadView_Enabled ~= false then
+            local uTPPCam = char.ThirdPersonCameraComponent
+            if isValid(uTPPCam) and not char.bIsWeaponAiming then
+                if uTPPCam.FieldOfView ~= targetTPP then
+                    uTPPCam.FieldOfView = targetTPP
+                end
+            end
           end
         end
       end
@@ -2575,8 +2590,10 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
         gi = SettingUtil and SettingUtil.GetGameInstance()
       end
       if gi then
-        gi:ExecuteCMD("grass.DensityScale", "0")
-        gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
+        if _G.Mod_NoGrass_Enabled ~= false then
+          gi:ExecuteCMD("grass.DensityScale", "0")
+          gi:ExecuteCMD("grass.DiscardDataOnLoad", "1")
+        end
       end
 
       pcall(function()
@@ -2668,6 +2685,7 @@ _G._AimbotCurrentPC = nil
 
 local function ApplyHardAimbot()
     if not _G.CheatsEnabled then return end
+    if _G.Mod_Aimbot_Enabled == false then return end
     pcall(function()
         local pc = slua_GameFrontendHUD:GetPlayerController()
         if not isValid(pc) then return end
