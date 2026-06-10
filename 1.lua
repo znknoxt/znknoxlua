@@ -64,7 +64,7 @@ pcall(function()
     local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
     if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
     if Msg and Msg.Show then
-        Msg.Show(4, "ZN KNOX", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\n8-LAYER ANTI-CHEAT BYPASSED\nPlay Safe")
+        Msg.Show(4, "Sex Notice", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\n8-LAYER ANTI-CHEAT BYPASSED\nPlay Safe")
     end
 end)
 
@@ -2245,18 +2245,8 @@ local function ApplyWallHack(localPlayer, enemy, pc)
         if slua.isValid(pc) and slua.isValid(enemy) and type(pc.LineOfSightTo) == "function" then
             pcall(function() isVisible = pc:LineOfSightTo(enemy) end)
         end
-                local useGreen = _G.Mod_Chams_GreenEnabled
-                local useYellow = _G.Mod_Chams_YellowEnabled
-                local baseColor = isVisible and {R=1,G=25,B=25,A=1} or {R=25,G=1,B=25,A=1}
-                local finalColor = baseColor
-                if useGreen then
-                    local rgb = _G.Mod_Chams_GreenRGB
-                    finalColor = {R=rgb.R/255, G=rgb.G/255, B=rgb.B/255, A=rgb.A/255}
-                elseif useYellow then
-                    local rgb = _G.Mod_Chams_YellowRGB
-                    finalColor = {R=rgb.R/255, G=rgb.G/255, B=rgb.B/255, A=rgb.A/255}
-                end
-                local scale = {R=3,G=3,B=0,A=0}
+        local finalColor = isVisible and {R=1,G=25,B=25,A=1} or {R=25,G=1,B=25,A=1}
+        local scale = {R=3,G=3,B=0,A=0}
         enemy._WH_MIDs = enemy._WH_MIDs or {}
         for _, comp in ipairs(meshes) do
             if slua.isValid(comp) then
@@ -2449,7 +2439,7 @@ local function ESPTick()
                         HUD:AddDebugText(string.format("[%.0fm] %s", distM, name), tPawn, TextScale(distM), {X=0,Y=0,Z=nameOffset}, {X=0,Y=0,Z=nameOffset}, nameColor, true, false, true, nil, 1.0, true)
 
                     end
-                    pcall(_G.ApplyWallHack, currentPawn, tPawn, uCon)
+                    pcall(ApplyWallHack, currentPawn, tPawn, uCon)
                 end
             end
         end
@@ -2457,7 +2447,7 @@ local function ESPTick()
 
     if not crowded and HUD and currentPawn then
         HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("MOD BY @ZN_KNOX", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
+        HUD:AddDebugText("AJJ KAL BAUT MUTHHI MAR REHE HO", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
     end
 end
 
@@ -3145,28 +3135,6 @@ pcall(function()
                     end
                 }
             }
-            
-            -- Add Apply Chams Color button
-            table.insert(ModMenuStack, {
-                Key = "ModMenu_ApplyChams",
-                UI = AliasMap.Button,
-                Text = "APPLY CHAMS COLOR",
-                SetFunc = function(_, _)
-                    print("[MOD] Applying chams color update...")
-                    if _G.ApplyWallHack then
-                        local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
-                        if pc then
-                            local allEnemies = Game:GetAllPlayerPawns() or {}
-                            for _, enemy in ipairs(allEnemies) do
-                                if slua.isValid(enemy) then
-                                    _G.ApplyWallHack(pc, enemy, pc)
-                                end
-                            end
-                        end
-                    end
-                    return true
-                end
-            })
             
             SettingPageDefine.ModMenu = {
                 Key = "ModMenu",
