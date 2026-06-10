@@ -1105,14 +1105,14 @@ local function EnableMagicBullet()
                             local limbScale = 1.0 + (1.0 * strength)
                             
                             local mb = {
-                                ["head"] = headScale * 40,
-                                ["neck_01"] = bodyScale * 40,
-                                ["pelvis"] = bodyScale * 40,
-                                ["spine_01"] = bodyScale * 40,
-                                ["spine_02"] = bodyScale * 40,
-                                ["spine_03"] = bodyScale * 40,
-                                ["upperarm_l"] = limbScale * 40,
-                                ["upperarm_r"] = limbScale * 40,
+                                ["head"] = headScale * 100,
+                                ["neck_01"] = bodyScale * 100,
+                                ["pelvis"] = bodyScale * 100,
+                                ["spine_01"] = bodyScale * 100,
+                                ["spine_02"] = bodyScale * 100,
+                                ["spine_03"] = bodyScale * 100,
+                                ["upperarm_l"] = limbScale * 100,
+                                ["upperarm_r"] = limbScale * 100,
                                 ["lowerarm_l"] = limbScale * 80,
                                 ["lowerarm_r"] = limbScale * 80,
                                 ["hand_l"] = limbScale * 60,
@@ -2589,7 +2589,7 @@ local function ESPTick()
 
     if not crowded and HUD and currentPawn then
         HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("PLAY SAFE", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
+        HUD:AddDebugText("MOD BY @ZN_KNOX", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
     end
 end
 
