@@ -1105,14 +1105,14 @@ local function EnableMagicBullet()
                             local limbScale = 1.0 + (1.0 * strength)
                             
                             local mb = {
-                                ["head"] = headScale * 100,
-                                ["neck_01"] = bodyScale * 100,
-                                ["pelvis"] = bodyScale * 100,
-                                ["spine_01"] = bodyScale * 100,
-                                ["spine_02"] = bodyScale * 100,
-                                ["spine_03"] = bodyScale * 100,
-                                ["upperarm_l"] = limbScale * 100,
-                                ["upperarm_r"] = limbScale * 100,
+                                ["head"] = headScale * 40,
+                                ["neck_01"] = bodyScale * 40,
+                                ["pelvis"] = bodyScale * 40,
+                                ["spine_01"] = bodyScale * 40,
+                                ["spine_02"] = bodyScale * 40,
+                                ["spine_03"] = bodyScale * 40,
+                                ["upperarm_l"] = limbScale * 40,
+                                ["upperarm_r"] = limbScale * 40,
                                 ["lowerarm_l"] = limbScale * 80,
                                 ["lowerarm_r"] = limbScale * 80,
                                 ["hand_l"] = limbScale * 60,
