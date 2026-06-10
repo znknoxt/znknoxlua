@@ -2757,9 +2757,9 @@ local function ApplyHardAimbot()
             for _, range in ipairs({"OuterRange", "InnerRange"}) do
                 local cfg = entity.AutoAimingConfig[range]
                 if cfg then
-                    cfg.Speed = 8 * strengthMul
-                    cfg.RangeRate = 2 * strengthMul
-                    cfg.SpeedRate = 5 * strengthMul
+                    cfg.Speed = 14.99 * strengthMul
+                    cfg.RangeRate = 6.9 * strengthMul
+                    cfg.SpeedRate = 7.4 * strengthMul
                     cfg.RangeRateSight = 2 * strengthMul
                     cfg.SpeedRateSight = 4 * strengthMul
                     cfg.CrouchRate = 4 * strengthMul
