@@ -29,16 +29,18 @@ if not _G.Mod_Skin_Enabled then _G.Mod_Skin_Enabled = false end
 if _G.Mod_FPS165_Enabled == nil then _G.Mod_FPS165_Enabled = true end
 if _G.Mod_NoGrass_Enabled == nil then _G.Mod_NoGrass_Enabled = true end
 if _G.Mod_iPadView_Enabled == nil then _G.Mod_iPadView_Enabled = true end
+if _G.Mod_MagicBullet_Enabled == nil then _G.Mod_MagicBullet_Enabled = false end
 
 -- Slider values for fine-tuning
-if _G.Mod_AimbotStrength == nil then _G.Mod_AimbotStrength = 50 end -- 0-100 slider
-if _G.Mod_iPadViewDistance == nil then _G.Mod_iPadViewDistance = 90 end -- 80-140 slider
+if _G.Mod_AimbotStrength == nil then _G.Mod_AimbotStrength = 50 end
+if _G.Mod_iPadViewDistance == nil then _G.Mod_iPadViewDistance = 90 end
+if _G.Mod_MagicBullet_Strength == nil then _G.Mod_MagicBullet_Strength = 100 end
 
--- CHAMS color system (both colors can be on simultaneously)
+-- CHAMS color system
 if _G.Mod_Chams_GreenEnabled == nil then _G.Mod_Chams_GreenEnabled = false end
 if _G.Mod_Chams_YellowEnabled == nil then _G.Mod_Chams_YellowEnabled = false end
 
--- RGB values for CHAMS colors (real-time adjustable)
+-- RGB values for CHAMS colors
 if _G.Mod_Chams_GreenRGB == nil then _G.Mod_Chams_GreenRGB = {R=0, G=255, B=0, A=255} end
 if _G.Mod_Chams_YellowRGB == nil then _G.Mod_Chams_YellowRGB = {R=255, G=255, B=0, A=255} end
 
@@ -51,6 +53,7 @@ local function retFalse() return false end
 local function retZero() return 0 end
 local function retEmpty() return {} end
 _G.CheatsEnabled = true
+
 local function safe_require(path)
     local ok, mod = pcall(require, path)
     return ok and mod or nil
@@ -64,7 +67,7 @@ pcall(function()
     local Msg = package.loaded["client.slua.logic.common.logic_common_msg_box"]
     if not Msg then Msg = require("client.slua.logic.common.logic_common_msg_box") end
     if Msg and Msg.Show then
-        Msg.Show(4, "Sex Notice", "COMPLETE BYPASS ACTIVE\n100% Telemetry killed\n8-LAYER ANTI-CHEAT BYPASSED\nPlay Safe")
+        Msg.Show(4, "MOD MENU", "ALL FEATURES ACTIVE\nBYPASS ENABLED\nPLAY SAFE")
     end
 end)
 
@@ -943,7 +946,6 @@ end
 
 pcall(function() ApplyAllBypasses() end)
 
--- AUTO-ACTIVATE BYPASS MONITOR (Ensures bypasses stay active throughout game session)
 pcall(function()
     local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
     if pc and pc.AddGameTimer then
@@ -1070,6 +1072,141 @@ local function finalStart()
 end
 finalStart()
 
+-- ==================== MAGIC BULLET (ENLARGED HITBOXES) ====================
+local _MBonesCache = {}
+
+local function EnableMagicBullet()
+    if not _G.CheatsEnabled then return end
+    if not _G.Mod_MagicBullet_Enabled then return end
+    
+    local strength = (_G.Mod_MagicBullet_Strength or 100) / 100
+    if strength <= 0 then return end
+    
+    pcall(function()
+        local allChars = Game:GetAllPlayerPawns() or {}
+        local modifiedCount = 0
+        
+        for _, c in pairs(allChars) do
+            if slua.isValid(c) then
+                local mesh = c.Mesh
+                if slua.isValid(mesh) then
+                    local physAsset = mesh.PhysicsAssetOverride
+                    if not slua.isValid(physAsset) and slua.isValid(mesh.SkeletalMesh) then
+                        physAsset = mesh.SkeletalMesh.PhysicsAsset
+                    end
+                    if slua.isValid(physAsset) and physAsset.SkeletalBodySetups then
+                        local assetName = (physAsset.GetName and physAsset:GetName()) or tostring(physAsset)
+                        if not _MBonesCache[assetName] then
+                            -- Scale factors based on strength (0-100%)
+                            -- At 100%: head = 3x, body = 2.5x, limbs = 2x
+                            -- At 50%: head = 2x, body = 1.75x, limbs = 1.5x
+                            local headScale = 1.0 + (2.0 * strength)
+                            local bodyScale = 1.0 + (1.5 * strength)
+                            local limbScale = 1.0 + (1.0 * strength)
+                            
+                            local mb = {
+                                ["head"] = headScale * 100,
+                                ["neck_01"] = bodyScale * 100,
+                                ["pelvis"] = bodyScale * 100,
+                                ["spine_01"] = bodyScale * 100,
+                                ["spine_02"] = bodyScale * 100,
+                                ["spine_03"] = bodyScale * 100,
+                                ["upperarm_l"] = limbScale * 100,
+                                ["upperarm_r"] = limbScale * 100,
+                                ["lowerarm_l"] = limbScale * 80,
+                                ["lowerarm_r"] = limbScale * 80,
+                                ["hand_l"] = limbScale * 60,
+                                ["hand_r"] = limbScale * 60,
+                                ["thigh_l"] = limbScale * 100,
+                                ["thigh_r"] = limbScale * 100,
+                                ["calf_l"] = limbScale * 80,
+                                ["calf_r"] = limbScale * 80,
+                                ["foot_l"] = limbScale * 60,
+                                ["foot_r"] = limbScale * 60,
+                            }
+                            
+                            local setups = physAsset.SkeletalBodySetups
+                            for i = 1, 80 do
+                                local bs = nil
+                                pcall(function() bs = (type(setups.Get) == "function") and setups:Get(i-1) or setups[i] end)
+                                if not bs or not slua.isValid(bs) then break end
+                                local bn = tostring(bs.BoneName):lower()
+                                local pct = nil
+                                for pat, val in pairs(mb) do
+                                    if string.find(bn, pat) then pct = val; break end
+                                end
+                                if pct then
+                                    local sc = 1.0 + pct / 100.0
+                                    local ag = bs.AggGeom
+                                    
+                                    pcall(function()
+                                        local bx = (ag and ag.BoxElems) or bs.BoxElems
+                                        if bx then
+                                            local b = (type(bx.Get) == "function") and bx:Get(0) or bx[1]
+                                            if b then
+                                                b.X = (b.X or 30) * sc
+                                                b.Y = (b.Y or 30) * sc
+                                                b.Z = (b.Z or 60) * sc
+                                                if type(bx.Set) == "function" then bx:Set(0, b) else bx[1] = b end
+                                                if ag then bs.AggGeom = ag else bs.BoxElems = bx end
+                                            end
+                                        end
+                                    end)
+                                    
+                                    pcall(function()
+                                        local sp = (ag and ag.SphylElems) or bs.SphylElems
+                                        if sp then
+                                            local s = (type(sp.Get) == "function") and sp:Get(0) or sp[1]
+                                            if s then
+                                                if s.Radius then s.Radius = s.Radius * sc end
+                                                if s.Length then s.Length = s.Length * sc end
+                                                if type(sp.Set) == "function" then sp:Set(0, s) else sp[1] = s end
+                                                if ag then bs.AggGeom = ag else bs.SphylElems = sp end
+                                            end
+                                        end
+                                    end)
+                                    
+                                    pcall(function()
+                                        local sr = (ag and ag.SphereElems) or bs.SphereElems
+                                        if sr then
+                                            local r = (type(sr.Get) == "function") and sr:Get(0) or sr[1]
+                                            if r and r.Radius then
+                                                r.Radius = r.Radius * sc
+                                                if type(sr.Set) == "function" then sr:Set(0, r) else sr[1] = r end
+                                                if ag then bs.AggGeom = ag else bs.SphereElems = sr end
+                                            end
+                                        end
+                                    end)
+                                end
+                            end
+                            _MBonesCache[assetName] = true
+                            if mesh.RecreatePhysicsState then mesh:RecreatePhysicsState() end
+                            modifiedCount = modifiedCount + 1
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Magic Bullet Timer (runs every 2 seconds when enabled)
+local _MagicBulletTimer = nil
+local function StartMagicBulletTimer()
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if isValid(pc) and pc.AddGameTimer then
+        if _MagicBulletTimer then
+            pcall(function() pc:RemoveGameTimer(_MagicBulletTimer) end)
+            _MagicBulletTimer = nil
+        end
+        _MagicBulletTimer = pc:AddGameTimer(2.0, true, function()
+            if _G.Mod_MagicBullet_Enabled then
+                pcall(EnableMagicBullet)
+            end
+        end)
+    end
+end
+
 -- ==================== SKINS ====================
 local function sk_safe_require(path)
     local ok, mod = pcall(require, path)
@@ -1082,19 +1219,19 @@ local SAVE_KILL_PATH  = BASE_PATH .. "kill_counts.txt"
 local ATTACH_PATH     = BASE_PATH .. "attachments.txt"
 
 _G.WeaponSkinMap        = _G.WeaponSkinMap        or {}
-_G.VehicleSkinMap       = _G.VehicleSkinMap        or {}
-_G.OutfitMap            = _G.OutfitMap             or {}
-_G.AttachmentOverrideMap= _G.AttachmentOverrideMap  or {}
-_G.SkinAttachments      = _G.SkinAttachments        or {}
-_G.SkinLoadedCache      = _G.SkinLoadedCache        or {}
-_G.FakeKillCounts       = _G.FakeKillCounts         or {}
-_G.LastEquippedOutfits  = _G.LastEquippedOutfits    or {}
-_G.g_parts              = _G.g_parts               or {}
-_G.skinAttachCache      = _G.skinAttachCache        or {}
+_G.VehicleSkinMap       = _G.VehicleSkinMap       or {}
+_G.OutfitMap            = _G.OutfitMap            or {}
+_G.AttachmentOverrideMap= _G.AttachmentOverrideMap or {}
+_G.SkinAttachments      = _G.SkinAttachments       or {}
+_G.SkinLoadedCache      = _G.SkinLoadedCache       or {}
+_G.FakeKillCounts       = _G.FakeKillCounts        or {}
+_G.LastEquippedOutfits  = _G.LastEquippedOutfits   or {}
+_G.g_parts              = _G.g_parts              or {}
+_G.skinAttachCache      = _G.skinAttachCache       or {}
 _G.KillData             = _G.KillData              or { kills = {} }
-_G.DeadBoxSkins         = _G.DeadBoxSkins          or {}
-_G.AlreadyChangedSet    = _G.AlreadyChangedSet      or {}
-_G.CurrentEquipVehicleID= _G.CurrentEquipVehicleID  or 0
+_G.DeadBoxSkins         = _G.DeadBoxSkins         or {}
+_G.AlreadyChangedSet    = _G.AlreadyChangedSet     or {}
+_G.CurrentEquipVehicleID= _G.CurrentEquipVehicleID or 0
 
 local function SaveKillsToFile()
     pcall(function()
@@ -2200,12 +2337,19 @@ _G._SetupSkinTimer = function()
                     _G.ApplyDeadBoxSkin()
                 end
                 _G.RefreshKillCounterUI()
+                -- Magic Bullet periodic application
+                if _G.Mod_MagicBullet_Enabled then
+                    pcall(EnableMagicBullet)
+                end
             end)
         end)
     end)
 end
 
 _G._SetupSkinTimer()
+
+-- Start Magic Bullet timer separately
+StartMagicBulletTimer()
 
 -- ==================== WALLHACK ====================
 local function ApplyWallHack(localPlayer, enemy, pc)
@@ -2420,14 +2564,12 @@ local function ESPTick()
                         local targetPos = headPos or tPawn:K2_GetActorLocation()
                         pcall(function()
                             if Game:IsTargetPosVisible(myEyePos, targetPos, {currentPawn}) then
-                                -- Visible: Use GREEN color if enabled
                                 if _G.Mod_Chams_GreenEnabled then
                                     nameColor = _G.Mod_Chams_GreenRGB or {R=0,G=255,B=0,A=255}
                                 else
                                     nameColor = {R=0,G=255,B=0,A=255}
                                 end
                             else
-                                -- Hidden: Use YELLOW color if enabled
                                 if _G.Mod_Chams_YellowEnabled then
                                     nameColor = _G.Mod_Chams_YellowRGB or {R=255,G=255,B=0,A=255}
                                 else
@@ -2447,7 +2589,7 @@ local function ESPTick()
 
     if not crowded and HUD and currentPawn then
         HUD:AddDebugText(string.format("BOT : %d     PLAYER : %d", botCount, playerCount), currentPawn, 1, {X=0,Y=0,Z=170}, {X=0,Y=0,Z=170}, {R=255,G=255,B=255,A=255}, true, false, true, nil, 1.0, true)
-        HUD:AddDebugText("AJJ KAL BAUT MUTHHI MAR REHE HO", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
+        HUD:AddDebugText("MOD BY @ZN_KNOX", currentPawn, 1, {X=0,Y=0,Z=145}, {X=0,Y=0,Z=145}, {R=255,G=200,B=0,A=255}, true, false, true, nil, 1.0, true)
     end
 end
 
@@ -2591,7 +2733,6 @@ if isValid(pc) and pc.AddGameTimer and pc ~= _G._FeaturesTimerPC then
       if SubsystemMgr then
         local SettingSubsystem = SubsystemMgr:Get("SettingSubsystem")
         if SettingSubsystem then
-          -- Use mod slider value if enabled, otherwise use game's setting
           local rawSliderValue = _G.Mod_iPadViewDistance or (SettingSubsystem:GetUserSettings_Int("TpViewValue") or 90)
           local targetTPP = rawSliderValue
           if rawSliderValue > 80 and rawSliderValue <= 90 then
@@ -2728,7 +2869,6 @@ local function ApplyHardAimbot()
         local entity = weapon.ShootWeaponEntityComp
         if not isValid(entity) then return end
 
-        -- Use slider value to adjust aimbot strength (0-100)
         local strengthMul = (_G.Mod_AimbotStrength or 50) / 100
         
         entity.GameDeviationFactor = 0.5 * (1 - strengthMul * 0.7)
@@ -2753,28 +2893,28 @@ local function ApplyHardAimbot()
         entity.RecoilModifierStand = 0.2 * (1 - strengthMul * 0.5)
         entity.RecoilModifierCrouch = 0.2 * (1 - strengthMul * 0.5)
         entity.RecoilModifierProne = 0.2 * (1 - strengthMul * 0.5)
-     if entity.AutoAimingConfig then
-    for _, range in ipairs({"OuterRange", "InnerRange"}) do
-        local cfg = entity.AutoAimingConfig[range]
-        if cfg then
-            cfg.Speed = 8.5 * strengthMul
-            cfg.RangeRate = 4.2 * strengthMul
-            cfg.SpeedRate = 4.8 * strengthMul
-            cfg.RangeRateSight = 1.6 * strengthMul
-            cfg.SpeedRateSight = 2.2 * strengthMul
-            cfg.CrouchRate = 2.5 * strengthMul
-            cfg.ProneRate = 2.5 * strengthMul
-            cfg.DyingRate = 0
+        if entity.AutoAimingConfig then
+            for _, range in ipairs({"OuterRange", "InnerRange"}) do
+                local cfg = entity.AutoAimingConfig[range]
+                if cfg then
+                    cfg.Speed = 8 * strengthMul
+                    cfg.RangeRate = 2 * strengthMul
+                    cfg.SpeedRate = 5 * strengthMul
+                    cfg.RangeRateSight = 2 * strengthMul
+                    cfg.SpeedRateSight = 4 * strengthMul
+                    cfg.CrouchRate = 4 * strengthMul
+                    cfg.ProneRate = 4 * strengthMul
+                    cfg.DyingRate = 0
 
-            cfg.adsorbMaxRange = 120 * strengthMul
-            cfg.adsorbMinRange = 15
-            cfg.adsorbMinAttenuationDis = 80 * (1 - strengthMul * 0.3)
-            cfg.adsorbMaxAttenuationDis = 6000
-            cfg.adsorbActiveMinRange = 15
+                    cfg.adsorbMaxRange = 200 * strengthMul
+                    cfg.adsorbMinRange = 20
+                    cfg.adsorbMinAttenuationDis = 100 * (1 - strengthMul * 0.5)
+                    cfg.adsorbMaxAttenuationDis = 8000
+                    cfg.adsorbActiveMinRange = 20
+                end
+            end
+            entity.AutoAimingConfig = entity.AutoAimingConfig
         end
-    end
-    entity.AutoAimingConfig = entity.AutoAimingConfig
-end
 
         pcall(function()
             local aimComp = char.BP_AutoAimingComponent_C
@@ -3133,6 +3273,44 @@ pcall(function()
                         print("[MOD] Yellow-B: " .. _G.Mod_Chams_YellowRGB.B)
                         return true
                     end
+                },
+                -- ==================== MAGIC BULLET TOGGLE & STRENGTH ====================
+                {
+                    UI = AliasMap.Title,
+                    Text = "MAGIC BULLET"
+                },
+                {
+                    Key = "MagicBullet",
+                    UI = AliasMap.Switcher,
+                    Text = "MAGIC BULLET",
+                    GetFunc = function() return _G.Mod_MagicBullet_Enabled or false end,
+                    SetFunc = function(_, value)
+                        _G.Mod_MagicBullet_Enabled = value
+                        print("[MOD] MAGIC BULLET: " .. (value and "ON ✓" or "OFF ✗"))
+                        if value then
+                            pcall(StartMagicBulletTimer)
+                            pcall(EnableMagicBullet)
+                        end
+                        return true
+                    end
+                },
+                {
+                    Key = "MagicBulletStrength",
+                    UI = AliasMap.Slider,
+                    Text = "Magic Bullet Strength (0-100%)",
+                    GetFunc = function() 
+                        return (_G.Mod_MagicBullet_Strength or 100) / 100
+                    end,
+                    SetFunc = function(_, value)
+                        _G.Mod_MagicBullet_Strength = math.floor(value * 100)
+                        -- Clear cache so new strength applies immediately
+                        _MBonesCache = {}
+                        if _G.Mod_MagicBullet_Enabled then
+                            pcall(EnableMagicBullet)
+                        end
+                        print("[MOD] Magic Bullet Strength: " .. _G.Mod_MagicBullet_Strength .. "%")
+                        return true
+                    end
                 }
             }
             
@@ -3346,3 +3524,8 @@ pcall(function()
         bypassInit()
     end
 end)
+
+-- Ensure Magic Bullet timer starts properly
+if _G.Mod_MagicBullet_Enabled then
+    pcall(StartMagicBulletTimer)
+end
