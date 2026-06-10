@@ -2753,28 +2753,28 @@ local function ApplyHardAimbot()
         entity.RecoilModifierStand = 0.2 * (1 - strengthMul * 0.5)
         entity.RecoilModifierCrouch = 0.2 * (1 - strengthMul * 0.5)
         entity.RecoilModifierProne = 0.2 * (1 - strengthMul * 0.5)
-        if entity.AutoAimingConfig then
-            for _, range in ipairs({"OuterRange", "InnerRange"}) do
-                local cfg = entity.AutoAimingConfig[range]
-                if cfg then
-                    cfg.Speed = 14.99 * strengthMul
-                    cfg.RangeRate = 6.9 * strengthMul
-                    cfg.SpeedRate = 7.4 * strengthMul
-                    cfg.RangeRateSight = 2 * strengthMul
-                    cfg.SpeedRateSight = 4 * strengthMul
-                    cfg.CrouchRate = 4 * strengthMul
-                    cfg.ProneRate = 4 * strengthMul
-                    cfg.DyingRate = 0
+     if entity.AutoAimingConfig then
+    for _, range in ipairs({"OuterRange", "InnerRange"}) do
+        local cfg = entity.AutoAimingConfig[range]
+        if cfg then
+            cfg.Speed = 8.5 * strengthMul
+            cfg.RangeRate = 4.2 * strengthMul
+            cfg.SpeedRate = 4.8 * strengthMul
+            cfg.RangeRateSight = 1.6 * strengthMul
+            cfg.SpeedRateSight = 2.2 * strengthMul
+            cfg.CrouchRate = 2.5 * strengthMul
+            cfg.ProneRate = 2.5 * strengthMul
+            cfg.DyingRate = 0
 
-                    cfg.adsorbMaxRange = 200 * strengthMul
-                    cfg.adsorbMinRange = 20
-                    cfg.adsorbMinAttenuationDis = 100 * (1 - strengthMul * 0.5)
-                    cfg.adsorbMaxAttenuationDis = 8000
-                    cfg.adsorbActiveMinRange = 20
-                end
-            end
-            entity.AutoAimingConfig = entity.AutoAimingConfig
+            cfg.adsorbMaxRange = 120 * strengthMul
+            cfg.adsorbMinRange = 15
+            cfg.adsorbMinAttenuationDis = 80 * (1 - strengthMul * 0.3)
+            cfg.adsorbMaxAttenuationDis = 6000
+            cfg.adsorbActiveMinRange = 15
         end
+    end
+    entity.AutoAimingConfig = entity.AutoAimingConfig
+end
 
         pcall(function()
             local aimComp = char.BP_AutoAimingComponent_C
