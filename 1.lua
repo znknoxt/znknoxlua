@@ -1,3 +1,10 @@
+do
+    local pc = slua_GameFrontendHUD and slua_GameFrontendHUD:GetPlayerController()
+    if _G._MOD_LOADED and _G._MOD_PC == pc then return end
+    _G._MOD_LOADED = true
+    _G._MOD_PC = pc
+end
+
 local function Notify(msg) local s = "[DUNG0610 VIP New] " .. tostring(msg)
 pcall(function() if _G.LexusNotify then _G.LexusNotify(s) end end)
 pcall(function() local sh = import("ScriptHelperClient") if sh and
